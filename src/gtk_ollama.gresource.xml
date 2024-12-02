@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/org/descarpentries/gtk_ollama">
+    <file preprocess="xml-stripblanks">window.ui</file>
+    <file preprocess="xml-stripblanks">gtk/help_overlay/help-overlay.ui</file>
+    <file>styles/styles.css</file>
+    <file>styles.css</file>
+  </gresource>
+</gresources>

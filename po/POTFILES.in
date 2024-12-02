@@ -1,0 +1,8 @@
+# List of source files containing translatable strings.
+# Please keep this file sorted alphabetically.
+data/org.descarpentries.gtk_ollama.desktop.in
+data/org.descarpentries.gtk_ollama.metainfo.xml.in
+data/org.descarpentries.gtk_ollama.gschema.xml
+src/main.py
+src/window.py
+src/window.ui

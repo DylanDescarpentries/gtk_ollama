@@ -1,0 +1,241 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!-- Created with Cambalache 0.94.0 -->
+<interface>
+  <!-- interface-name window.ui -->
+  <requires lib="Adw" version="1.0"/>
+  <requires lib="gio" version="2.0"/>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="libadwaita" version="1.4"/>
+  <template class="OllamaGtkWindow" parent="AdwApplicationWindow">
+    <property name="default-height">600</property>
+    <property name="default-width">800</property>
+    <property name="title" translatable="yes">Gtk-ollama</property>
+    <child>
+      <object class="AdwNavigationSplitView" id="splitView">
+        <property name="content">
+          <object class="AdwNavigationPage">
+            <property name="child">
+              <object class="AdwToolbarView" id="tchat_view">
+                <child type="top">
+                  <object class="AdwHeaderBar">
+                    <!-- Use a custom title widget to enable markup for subtitles
+                             (for URLs in channel topics); other than that, we want
+                             the default GtkHeaderBar behavior, e.g. the subtitle may
+                             be hidden, but is always included in the size request.
+                             We replicate this by using a stack which will only ever show
+                             its first child, but still consider the second one's size -->
+                    <property name="title-widget">
+                      <object class="GtkStack">
+                        <property name="margin-end">24</property>
+                        <property name="margin-start">24</property>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="orientation">vertical</property>
+                            <property name="valign">center</property>
+                            <child>
+                              <object class="GtkComboBoxText" id="combo_models_list">
+                                <property name="accessible-role">list-item</property>
+                                <property name="id-column">0</property>
+                                <property name="margin-bottom">5</property>
+                                <property name="margin-end">10</property>
+                                <items>
+                                  <item id="search-item">Rechercher un model</item>
+                                </items>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="ellipsize">middle</property>
+                                <property name="justify">center</property>
+                                <property name="label">titre conversation</property>
+                                <property name="margin-top">5</property>
+                                <property name="wrap-mode">word-char</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="hexpand">True</property>
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="AdwToastOverlay" id="toast_overlay">
+                        <child>
+                          <object class="GtkScrolledWindow">
+                            <property name="vexpand">True</property>
+                            <child>
+                              <object class="GtkListBox" id="messages_list">
+                                <property name="margin-bottom">10</property>
+                                <property name="margin-end">10</property>
+                                <property name="margin-start">10</property>
+                                <property name="margin-top">10</property>
+                                <property name="show-separators">True</property>
+                                <property name="vexpand-set">True</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <!-- Zone de saisie utilisateur -->
+                      <object class="GtkBox">
+                        <property name="hexpand">True</property>
+                        <property name="margin-bottom">10</property>
+                        <property name="margin-end">10</property>
+                        <property name="margin-start">10</property>
+                        <property name="margin-top">10</property>
+                        <property name="orientation">horizontal</property>
+                        <property name="spacing">10</property>
+                        <child>
+                          <object class="GtkTextView" id="user_entry">
+                            <property name="bottom-margin">10</property>
+                            <property name="hexpand">true</property>
+                            <property name="input-hints">spellcheck</property>
+                            <property name="top-margin">10</property>
+                            <property name="wrap-mode">word</property>
+                            <style>
+                              <class name="user_entry"/>
+                            </style>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkButton" id="sendButton">
+                            <property name="halign">center</property>
+                            <property name="height-request">48</property>
+                            <property name="icon-name">send-to-symbolic</property>
+                            <property name="receives-default">False</property>
+                            <property name="valign">end</property>
+                            <property name="width-request">48</property>
+                            <signal name="clicked" handler="on_send_button_clicked"/>
+                            <style>
+                              <class name="sendButton"/>
+                            </style>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </property>
+            <property name="tag">content</property>
+            <property name="title">Tchat</property>
+            <style>
+              <class name="view"/>
+            </style>
+          </object>
+        </property>
+        <property name="min-sidebar-width">200</property>
+        <property name="sidebar">
+          <object class="AdwNavigationPage">
+            <property name="child">
+              <object class="AdwToolbarView" id="model_view">
+                <child type="top">
+                  <object class="AdwHeaderBar">
+                    <property name="show-title">False</property>
+                    <child type="end">
+                      <object class="GtkMenuButton">
+                        <property name="halign">end</property>
+                        <property name="icon-name">open-menu-symbolic</property>
+                        <property name="menu-model">primary_menu</property>
+                        <property name="primary">True</property>
+                        <property name="tooltip-text" translatable="yes">Main Menu</property>
+                        <property name="valign">center</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuButton">
+                        <property name="halign">end</property>
+                        <property name="icon-name">chat-message-new-symbolic</property>
+                        <property name="menu-model">model_menu</property>
+                        <property name="primary">True</property>
+                        <property name="tooltip-text" translatable="yes">Main Menu</property>
+                        <property name="valign">center</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkSeparator">
+                        <property name="margin-bottom">10</property>
+                        <property name="margin-top">10</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkBox">
+                        <property name="margin-bottom">10</property>
+                        <property name="margin-top">10</property>
+                        <property name="orientation">vertical</property>
+                        <child>
+                          <object class="GtkListBox" id="conversations_list">
+                            <child>
+                              <object class="GtkToggleButton">
+                                <property name="active">True</property>
+                                <property name="label">Titre de conv</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </property>
+            <property name="tag">sidebar</property>
+            <property name="title">Tchat Dispo</property>
+          </object>
+        </property>
+      </object>
+    </child>
+  </template>
+  <menu id="primary_menu">
+    <section>
+      <item>
+        <attribute name="action">app.preferences</attribute>
+        <attribute name="label" translatable="yes">_Preferences</attribute>
+      </item>
+      <item>
+        <attribute name="action">win.show-help-overlay</attribute>
+        <attribute name="label" translatable="yes">_Keyboard Shortcuts</attribute>
+      </item>
+      <item>
+        <attribute name="action">app.about</attribute>
+        <attribute name="label" translatable="yes">_About Gtk-ollama</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
+        <attribute name="action">app.help</attribute>
+        <attribute name="label">_Aide</attribute>
+      </item>
+      <section>
+        <item>
+          <attribute name="action">app.load_conv</attribute>
+          <attribute name="label">charger une conversation</attribute>
+        </item>
+      </section>
+    </section>
+  </menu>
+  <menu id="model_menu">
+    <section>
+      <item>
+        <attribute name="action">app.search_local_model</attribute>
+        <attribute name="label">_Nouvelle Conversation</attribute>
+      </item>
+      <item>
+        <attribute name="action">app.open_save</attribute>
+        <attribute name="icon">folder-open-symbolic</attribute>
+        <attribute name="label">_Ouvrir une sauvegarde</attribute>
+      </item>
+    </section>
+  </menu>
+</interface>
