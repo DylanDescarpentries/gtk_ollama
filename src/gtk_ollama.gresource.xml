@@ -3,7 +3,10 @@
   <gresource prefix="/org/descarpentries/gtk_ollama">
     <file preprocess="xml-stripblanks">window.ui</file>
     <file preprocess="xml-stripblanks">gtk/help_overlay/help-overlay.ui</file>
+    <file preprocess="xml-stripblanks">gtk/manage_model/manage_model.ui</file>
     <file>styles/styles.css</file>
-    <file>styles.css</file>
+  </gresource>
+    <gresource prefix="/org/codeberg/vendillah/Clavier/icons">
+    <file compressed="true" alias="scalable/status/paper-plane-symbolic.svg" preprocess="xml-stripblanks">../data/icons/icons/paper-plane-symbolic.svg</file>
   </gresource>
 </gresources>

@@ -1,0 +1,66 @@
+{
+  "id" : "org.descarpentries.gtk_ollama",
+  "runtime" : "org.gnome.Platform",
+  "runtime-version" : "47",
+  "runtime-commit" : "8b2e13e32974bd8d76cda9a80dc6eba8e275335a2b2e5a87b7ebdeaed4806668",
+  "sdk" : "org.gnome.Sdk",
+  "sdk-commit" : "d546c8a9e9dea99752ddfd93f138431f6619ab0f14259b44cf9ca3c0ed10a7c9",
+  "command" : "gtk_ollama",
+  "modules" : [
+    {
+      "name" : "requests",
+      "buildsystem" : "simple",
+      "build-options" : {
+        "build-args" : [
+          "--share=network"
+        ]
+      },
+      "build-commands" : [
+        "pip3 install --prefix=/app --no-cache-dir requests"
+      ]
+    },
+    {
+      "name" : "ollama",
+      "buildsystem" : "simple",
+      "build-options" : {
+        "build-args" : [
+          "--share=network"
+        ]
+      },
+      "build-commands" : [
+        "pip3 install --prefix=/app --no-cache-dir ollama"
+      ]
+    },
+    {
+      "name" : "gtk_ollama",
+      "buildsystem" : "meson",
+      "builddir" : true,
+      "sources" : [
+        {
+          "url" : "file:///home/dylan/Documents/Programmation/Projet/Application/Gnome_Builder_Projects/gtk_ollama/",
+          "commit" : "d3b923272e0153aa8fe3f42f89689bdcc7a8a0e4",
+          "type" : "git"
+        }
+      ]
+    }
+  ],
+  "cleanup" : [
+    "/include",
+    "/lib/pkgconfig",
+    "/man",
+    "/share/doc",
+    "/share/gtk-doc",
+    "/share/man",
+    "/share/pkgconfig",
+    "*.la",
+    "*.a"
+  ],
+  "finish-args" : [
+    "--share=network",
+    "--share=ipc",
+    "--socket=fallback-x11",
+    "--device=dri",
+    "--socket=wayland"
+  ],
+  "source-date-epoch" : 1733176432
+}

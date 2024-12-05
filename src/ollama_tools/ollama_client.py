@@ -2,7 +2,7 @@ import os, requests, json
 from ollama import Client
 
 class Ollama_client:
-    def __init__(self, api_url="http://127.0.0.1:11434"):
+    def __init__(self, api_url="http://127.0.0.1:11434") -> None:
         """
         Initialise la classe avec l'URL de base de l'API.
         :param api_url: URL de l'API pour récupérer les modèles (par défaut localhost).
@@ -11,7 +11,7 @@ class Ollama_client:
         self.history_conv = [{'id': 1, 'model': None, 'title': 'title', 'user': 'Yo, comment ça va', 'assistant': None}]
         self.fichier_json =  os.path.expanduser("~/Documents/Programmation/conv_save/conv_save.json")
 
-    def list_models(self):
+    def list_models(self) -> json:
         """
         Récupère la liste des modèles depuis l'API.
         :return: Données JSON ou un dictionnaire vide en cas d'erreur.
@@ -27,8 +27,7 @@ class Ollama_client:
             print(f"Erreur lors de la récupération des modèles : {e}")
             return {}
 
-
-    def get_name_model(self):
+    def get_name_model(self) -> list:
         """
         Lit le fichier JSON fixe et extrait les noms des modèles.
         :return: Liste des noms ou une liste vide en cas d'erreur.
@@ -65,8 +64,6 @@ class Ollama_client:
                     print(f"Entrée d'historique non conforme : {conv}")
 
         messages.append({'role': 'user', 'content': user_input})
-
-        print("Messages préparés : ", messages)
         return messages
 
     def response(self, model, user_input, history_conv):
@@ -78,17 +75,25 @@ class Ollama_client:
         Returns:
             str: La réponse du modèle ou un message d'erreur.
         """
-
-        # Préparation des messages
-        print("de la réponse methode : ", history_conv)
         messages = self.prepare_messages(model, history_conv, user_input)
-        print("de la methode : ", messages)
-
         # Effectuer la requête au modèle
         try:
-            client = Client(host=self.api_url)  # Remplacez par l'initialisation correcte du client
+            client = Client(host=self.api_url)
             response = client.chat(model=model, messages=(messages))
             return response['message']['content']
         except Exception as e:
             print(f"Erreur lors de la requête au modèle '{model}' : {e}")
             return "Une erreur est survenue. Veuillez réessayer."
+
+    def create_default_title(self, conversation):
+        """
+        Crée un titre par défaut pour une conversation.
+        Le titre est basé sur les premiers mots de la requête utilisateur.
+        """
+        user_input = conversation.get("user", "").strip()  # Récupère la requête utilisateur
+        if not user_input:
+            return "Nouvelle Conversation"  # Titre par défaut si aucune requête utilisateur
+
+        # Limite le titre à 5 mots maximum
+        title = user_input[:23].rsplit(" ", 1)[0] + "..." if len(user_input) > 24 else user_input
+        return title if title else "Nouvelle Conversation"

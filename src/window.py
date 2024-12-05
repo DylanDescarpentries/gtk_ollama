@@ -17,174 +17,261 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from typing import List, Optional, Dict, Union
+
 import json
 from gi.repository import Adw, Gtk, Gdk, Gio
-
 from .ollama_client import Ollama_client
-from .ollama_model import  Ollama_model
+from .ollama_model import Ollama_model
 
 
-@Gtk.Template(resource_path='/org/descarpentries/gtk_ollama/window.ui')
+@Gtk.Template(resource_path="/org/descarpentries/gtk_ollama/window.ui")
 class GtkOllamaWindow(Adw.ApplicationWindow):
-    __gtype_name__ = 'OllamaGtkWindow'
+    __gtype_name__ = "OllamaGtkWindow"
+
     # Déclarations des enfants de l'interface
-    combo_models_list = Gtk.Template.Child()
-    user_entry = Gtk.Template.Child()
-    messages_list = Gtk.Template.Child()
-    conversations_list = Gtk.Template.Child()
-    toast_overlay = Gtk.Template.Child()
+    combo_models_list: Gtk.ComboBoxText = Gtk.Template.Child()
+    user_entry: Gtk.TextView = Gtk.Template.Child()
+    messages_list: Gtk.ListBox = Gtk.Template.Child()
+    conversations_list: Gtk.ListBox = Gtk.Template.Child()
+    toast_overlay: Adw.ToastOverlay = Gtk.Template.Child()
+    conv_title: Gtk.Label = Gtk.Template.Child()
+    edit_title_button: Gtk.Button = Gtk.Template.Child()
+    edit_title_label:Gtk.EditableLabel = Gtk.Template.Child()
 
 
-    def __init__(self, **kwargs):
+    # Déclarations des variables transversales
+    toggle_buttons: List[Gtk.ToggleButton] = []
+    active_toggle_button: Optional[Gtk.ToggleButton] = None
+
+    ollama_model: Ollama_model
+    ollama_client: Ollama_client
+
+    def __init__(self, **kwargs: Dict[str, Union[str, int, float]]) -> None:
         super().__init__(**kwargs)
         self.apply_styles()
-        # Initialisation de Ollama_client
-        self.ollama_model = Ollama_model()
-        self.ollama_model.load_from_file("/home/dylan/Documents/gtk_ollama/saves/saves.json")
-        self.ollama_client = Ollama_client()
-        self.add_default_models_to_combo_models_list()
-        # Ajouter les modèles au GtkComboBoxText
-        self.add_conversations_to_panel()
 
-    def apply_styles(self):
+        # Initialisation des modèles et clients
+        self.ollama_model = Ollama_model()
+        self.ollama_model.load_from_file()
+        self.ollama_client = Ollama_client()
+
+        self.add_default_models_to_combo_models_list()
+        self.load_conversations_to_panel()
+
+
+    def apply_styles(self) -> None:
+        """Applique les styles CSS à l'interface."""
         css_provider = Gtk.CssProvider()
         css_provider.load_from_resource("/org/descarpentries/gtk_ollama/styles/styles.css")
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(),
             css_provider,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
 
-    def get_model_active(self):
-        model = self.combo_models_list.get_active_text()
-        if model:
-            return model
+    def get_model_active(self) -> Optional[str]:
+        """Récupère le modèle actuellement actif dans le combo box."""
+        return self.combo_models_list.get_active_text()
 
-    def get_user_input(self):
-    # Récupérer le texte saisi par l'utilisateur
-        user_input = self.user_entry.get_buffer().get_text(
-            self.user_entry.get_buffer().get_start_iter(),
-            self.user_entry.get_buffer().get_end_iter(),
-            True
-            )
-        self.user_entry.get_buffer().set_text("")
+    def get_user_input(self) -> str:
+        """Récupère la saisie de l'utilisateur et efface le champ."""
+        buffer = self.user_entry.get_buffer()
+        user_input = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), True).strip()
+        buffer.set_text("")  # Efface le champ
         return user_input
 
     @Gtk.Template.Callback()
-    def on_send_button_clicked(self, button):
+    def on_send_button_clicked(self, button: Gtk.Button) -> None:
         """
         Callback exécuté lorsque le bouton d'envoi est cliqué.
         Envoie une requête au client LLM en utilisant le modèle de gestion des conversations.
         """
-        # Récupérer le modèle actif et la saisie utilisateur
         model = self.get_model_active()
         if not model:
-            print("Aucun modèle actif.")
             self.toast_overlay.add_toast(Adw.Toast(title="Aucun modèle actif"))
             return
 
         user_input = self.get_user_input()
-        if not user_input.strip():  # Ignore les entrées vides
-            print("La saisie utilisateur est vide.")
+        if not user_input:
             self.toast_overlay.add_toast(Adw.Toast(title="Saisie utilisateur vide"))
             return
 
-        # Ajouter le message de l'utilisateur à l'interface
         self.add_message_to_list(user_input)
+        self.ask_response(model, user_input)
 
-        # Récupérer l'historique des conversations pour ce modèle
-        active_conversation = self.ollama_model.get_active_conversation()
+    @Gtk.Template.Callback()
+    def on_trash_button_clicked(self, button: Gtk.Button) -> None:
+        """
+        Callback ecécuté lorsque le bouton de suppresion est cliqué.
+        Supprime la conversation active
+        """
+        print("suppression en cours...")
+        conv_id = self.active_toggle_button.conversation_id if self.active_toggle_button else None
+        self.ollama_model.delete_conversation(conv_id)
+        self.clear_messages_list()
+        self.load_conversations_to_panel()
 
-        # Construire l'historique pour le modèle
+    @Gtk.Template.Callback()
+    def on_edit_title_button_clicked(self, button: Gtk.Button) -> None:
+        if not self.active_toggle_button:
+            return
+        # Affiche le champ d'édition
+        self.edit_title_button.set_visible(False)
+        self.edit_title_label.set_visible(True)
+        # Force le démarrage de l'édition
+        self.edit_title_label.start_editing()
+
+    @Gtk.Template.Callback()
+    def on_title_text_change(self, editableLabel: Gtk.EditableLabel) -> None:
+        conv_id = self.active_toggle_button.conversation_id if self.active_toggle_button else None
+        title = self.edit_title_label.get_text()
+        conversation = self.ollama_model.get_conversation(conv_id)
+        conversation['title'] = title
+        self.load_conversations_to_panel()
+
+    @Gtk.Template.Callback()
+    def on_title_edit_change(self, editableLabel: Gtk.EditableLabel, param) -> None:
+        # Vérifie si l'édition a été terminée
+        if not self.edit_title_label.get_editing():
+            print("Fin de l'édition détectée")
+
+            # Récupère et traite les données
+            conv_id = self.active_toggle_button.conversation_id if self.active_toggle_button else None
+            print(f"ID de conversation actif: {conv_id}")
+
+            title = self.edit_title_label.get_text()
+            print(f"Titre saisi: {title}")
+
+            conversation = self.ollama_model.get_conversation(conv_id)
+            if conversation:
+                conversation['title'] = title
+                print(f"Conversation mise à jour: {conversation}")
+                self.load_conversations_to_panel()
+                self.ollama_model.save_to_file()
+
+            # Réinitialise l'interface utilisateur
+            self.edit_title_button.set_visible(True)
+            self.edit_title_label.set_visible(False)
+            print("Mise à jour de l'interface terminée")
+
+    def ask_response(self, model: str, user_input: str) -> None:
+        """Envoie une requête au client et met à jour l'interface."""
+        conv_id = self.active_toggle_button.conversation_id if self.active_toggle_button else None
+        print(conv_id)
+
+        if conv_id is None:  # Pas de conversation active
+            title = self.ollama_client.create_default_title({"user": user_input})
+            self.toast_overlay.add_toast(Adw.Toast(title="Nouvelle conversation"))
+
+            # Crée une nouvelle conversation
+            new_conv_id = self.ollama_model.add_conversation(model, title, user_input, "")
+            self.add_conversation_to_panel(title)  # Ajoute à l'interface
+            self.ollama_model.save_to_file()
+            self.load_conversations_to_panel()
+
+            # Charger cette nouvelle conversation comme active
+            self.active_toggle_button = new_conv_id
+            active_conversation = self.ollama_model.set_active_conversation(new_conv_id)
+        else:  # Une conversation active existe
+            active_conversation = self.ollama_model.set_active_conversation(conv_id)
+        # Récupérer l'historique des conversations
         history_conv = self.ollama_model.conversations
 
-        # Obtenir une réponse du modèle avec l'historique
+        # Obtenir une réponse à partir du modèle
         response = self.ollama_client.response(model=model, history_conv=history_conv, user_input=user_input)
-
-        # Ajouter la réponse de l'assistant à l'interface
         self.add_message_to_list(response)
 
-        # Mettre à jour ou ajouter la conversation
+        # Mise à jour de la conversation active
         if active_conversation:
             self.ollama_model.update_conversation(
                 conv_id=active_conversation["id"],
                 user_input=user_input,
                 assistant_response=response,
             )
-            print(f"Conversation mise à jour : {active_conversation}")
-        else:
-            self.ollama_model.add_conversation(model, user=user_input, assistant=response)
-            print(f"Nouvelle conversation ajoutée : {self.ollama_model.list_conversations()}")
-            # sauvegarde automatique la conversation en cours
+
+        # Sauvegarder les modifications
         self.ollama_model.save_to_file()
 
-    def add_message_to_list(self, text):
-        """
-        Ajoute un message à la liste des messages.
-        """
-        label = Gtk.Label(label=text, halign=Gtk.Align.START, wrap=True)  # Aligné à gauche
-        row = Gtk.ListBoxRow()  # Crée une ligne
-        row.set_child(label)  # Définit le label comme enfant de la ligne
-        self.messages_list.append(row)  # Ajoute la ligne à la liste des messages
+    def add_message_to_list(self, text: str) -> None:
+        """Ajoute un message à la liste des messages."""
+        label = Gtk.Label(label=text, halign=Gtk.Align.START, wrap=True)
+        row = Gtk.ListBoxRow()
+        row.set_child(label)
+        self.messages_list.append(row)
 
-    def add_conversations_to_panel(self):
-        """
-        Ajoute les conversations à la liste de conversation sous forme de boutons avec les titres en label.
-        """
-        # Récupérer les titres des conversations
-        titres = self.ollama_model.get_title()
-        print("test caca prout ", titres)
+    def clear_messages_list(self) -> None:
+        """Efface tous les messages de la liste."""
+        self.messages_list.remove_all()
 
-        if not titres:
-            print("Aucune conversation disponible pour l'ajout.")
-            return
+    def load_conversations_to_panel(self) -> None:
+        """Ajoute les conversations à la liste sous forme de boutons."""
+        if self.conversations_list:
+            self.toggle_buttons.clear()
+            self.conversations_list.remove_all()
+            for conversation in self.ollama_model.get_all_conversations():
+                button = Gtk.ToggleButton(label=conversation["title"])
+                button.conversation_id = conversation["id"]  # type: ignore
+                button.connect("toggled", self.on_conversation_selected)
+                self.toggle_buttons.append(button)
 
-        # Ajouter chaque titre comme un bouton à la liste des conversations
-        for titre in titres:
-            # Créer un bouton avec le titre comme label
-            button = Gtk.ToggleButton(label=titre)
-            button.set_valign(Gtk.Align.START)  # Alignement vertical (optionnel)
+                row = Gtk.ListBoxRow()
+                row.set_child(button)
+                self.conversations_list.set_selection_mode(Gtk.SelectionMode.NONE)
+                self.conversations_list.append(row)
 
-            # Associer une action au bouton si nécessaire (facultatif)
-            button.connect("toggled", self.on_conversation_selected, titre)
+    def add_conversation_to_panel(self, title: str) -> None:
+        button = Gtk.ToggleButton(label=title)
+        button.conversation_id = len(self.ollama_model.get_all_conversations()) + 1
+        button.connect("toggled", self.on_conversation_selected)
+        self.toggle_buttons.append(button)
 
-            # Créer une ligne pour le ListBox
-            row = Gtk.ListBoxRow()
-            row.set_child(button)
-
-            # Ajouter la ligne à la liste des conversations
-            self.conversations_list.append(row)
-
-    def on_conversation_selected(self, button, titre):
-        """
-        Gère la sélection d'une conversation via le bouton correspondant.
-        """
+    def on_conversation_selected(self, button: Gtk.ToggleButton) -> None:
+        """Gère la sélection d'une conversation."""
         if button.get_active():
-            print(f"Conversation sélectionnée : {titre}")
-        else:
-            print(f"Conversation désélectionnée : {titre}")
+            self.active_toggle_button = button
+            for other_button in self.toggle_buttons:
+                if other_button != button:
+                    other_button.set_active(False)
 
-    def add_default_models_to_combo_models_list(self):
-        """
-        Remplit le GtkComboBoxText avec les noms des modèles récupérés.
-        """
+            conv_id = button.conversation_id
+            print("conversation selectionné : ",conv_id)
+            conversation = self.ollama_model.get_conversation(conv_id)
+            self.load_conversation_to_chat(conversation)
+            self.load_active_model(conversation)
+            title = conversation['title']
+            self.conv_title.set_label(title)
 
+    def load_active_model(self, conversation: Dict[str, str]) -> None:
+        """Active le modèle dans le GtkComboBoxText."""
+        model = conversation["model"]
+        for index, item in enumerate(self.combo_models_list.get_model()):
+            self.combo_models_list.set_active(index)
+            if self.combo_models_list.get_active_text() == model:
+                return
+
+        self.combo_models_list.set_active(-1)
+
+    def load_conversation_to_chat(self, conversation: Dict[str, Union[str, List[Dict[str, str]]]]) -> None:
+        """Charge les messages d'une conversation dans l'interface."""
+        self.clear_messages_list()
+        for message in conversation["history"]:
+            self.add_message_to_list(message["content"])
+
+    def add_default_models_to_combo_models_list(self) -> None:
+        """Remplit le GtkComboBoxText avec les noms des modèles."""
         try:
             names_model = self.ollama_client.get_name_model()
-
-            if not self.combo_models_list:
-                print("combo_models_list n'a pas été initialisé correctement.")
-                return
             if not names_model:
-                print("Aucun modèle trouvé.")
                 self.combo_models_list.append_text("Aucun modèle disponible")
                 return
 
-            # Ajouter les noms des modèles au combo box
             for name in names_model:
                 self.combo_models_list.append_text(name)
-
+                self.combo_models_list.set_active(0)
         except Exception as e:
-            print(f"Erreur lors du remplissage du GtkComboBoxText : {e}")
-            self.combo_models_list.append_text("Erreur lors du chargement")
+            if not self.combo_models_list:
+                print("mdr")
+            else:
+                self.combo_models_list.append_text("Erreur lors du chargement")
 

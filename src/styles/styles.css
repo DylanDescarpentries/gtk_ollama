@@ -1,10 +1,41 @@
+/* Champ d'entrée utilisateur */
 .user_entry {
-	box-shadow: 0 0 1px 2px #ebebeb ;
-  border-radius: 5px;
-  padding: 5px;
+  box-shadow: 0 0 6px 2px #ebebeb;
+  border-radius: 10px;
+  padding: 10px;
+
+  /* Transition douce pour interactivité */
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
+/* Bouton d'envoi */
 .sendButton {
-  border-radius: 50px;
-  padding: 5px;
+  border-radius: 50%;
+  padding: 15px;
+  background-color: #e62d42;
+  /* Animation */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 0 6px 3px #ebebeb;
+}
+
+.sendButton:active {
+  /* Effet au clic */
+  transform: scale(0.99);
+  background-color: mix(@accent_color, #000000, 0.1); /* Accentuation modérée */
+    box-shadow: 0 0 4px 1px #ebebeb;
+}
+
+list {
+  background-color: transparent;
+}
+
+label {
+  font-family: monospace;
+}
+
+.tchat_box_container {
+padding: 20px;
+  border-radius: 10px;
+  border: 1px solid @accent_color;
+  box-shadow: 0 0 6px 3px @accent_color;
 }

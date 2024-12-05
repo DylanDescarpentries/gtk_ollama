@@ -1,0 +1,4 @@
+[Application]
+name=org.descarpentries.gtk_ollama
+runtime=org.gnome.Platform/x86_64/47
+sdk=org.gnome.Sdk/x86_64/47

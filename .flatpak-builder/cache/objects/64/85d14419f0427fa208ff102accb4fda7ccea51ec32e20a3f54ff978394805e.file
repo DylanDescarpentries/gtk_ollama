@@ -1,0 +1,5 @@
+[Runtime]
+name=org.descarpentries.gtk_ollama.Debug
+
+[ExtensionOf]
+ref=app/org.descarpentries.gtk_ollama/x86_64/master
