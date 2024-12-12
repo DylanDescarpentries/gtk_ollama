@@ -1,10 +1,10 @@
 [Desktop Entry]
-Name=gtk_ollama
-Exec=gtk_ollama
+Name=Gtk Ollama
+Exec=@BINARY@
 Icon=org.descarpentries.gtk_ollama
 Terminal=false
 Type=Application
 Categories=Utility;
-Keywords=GTK;
+Keywords=GTK;AI;
 StartupNotify=true
 DBusActivatable=true

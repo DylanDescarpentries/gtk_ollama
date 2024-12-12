@@ -18,6 +18,18 @@
   box-shadow: 0 0 6px 3px #ebebeb;
 }
 
+model_title {
+  font-size: 24px;
+  font-weight: 700 ;
+}
+button {
+  padding: 6px 8px 6px 8px;
+  font-weight: 1000;
+  margin: 0;
+  }
+
+
+
 .sendButton:active {
   /* Effet au clic */
   transform: scale(0.99);
@@ -33,9 +45,30 @@ label {
   font-family: monospace;
 }
 
-.tchat_box_container {
-padding: 20px;
+.message_box {
+padding-top: 20px;
   border-radius: 10px;
-  border: 1px solid @accent_color;
-  box-shadow: 0 0 6px 3px @accent_color;
+  border: 1px solid #ebebeb;
+  box-shadow: 0 0 3px 1px #ebebeb;
 }
+
+.title_conv {
+  font-weight: bold;
+}
+
+/* Box extérieure (contenant la box qui possède le grid) */
+details_models {
+  padding: 10px; /* Augmenté pour mieux espacer */
+  border-radius: 8px; /* Légèrement plus arrondi */
+  margin-bottom: 20px; /* Espacement sous la boîte */
+}
+
+/* Grid contenant les labels */
+details_grid label{
+    padding: 5px;
+    border-right: 1px solid #ebebeb;
+    border-bottom: 1px solid #ebebeb;
+    border-radius: 5px;
+}
+
+

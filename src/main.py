@@ -26,8 +26,8 @@ gi.require_version('Adw', '1')
 from gi.repository import Gtk, Gio, Adw
 from .window import GtkOllamaWindow
 from .help_overlay import Help_Overlay_ShortcutsWindow
-from .manage_model_window import Manage_Model_Window
 from .ollama_model import Ollama_model
+from .ollama_get_models import scrape_ollama_library
 
 
 class GtkOllamaApplication(Adw.Application):
@@ -41,8 +41,9 @@ class GtkOllamaApplication(Adw.Application):
         self.create_action('preferences', self.on_preferences_action)
         self.create_action('help', self.on_help_action, ['F1'])
         self.create_action('open_save', self.on_open_save, ['<primary>o'])
-        self.create_action('get_active_conv', self.on_active_conv)
-        self.create_action('model_manage', self.on_model_manage)
+        self.create_action('new_conv', self.on_new_conv, ['<primary>n'])
+        self.create_action('change_view', self.on_view_change)
+        self.create_action('actualize_model', self.on_actualize_model)
 
     def do_activate(self):
         """Called when the application is activated.
@@ -84,8 +85,6 @@ class GtkOllamaApplication(Adw.Application):
 
     def on_help_action(self, *args):
         """Callback for the app.help action"""
-        print("help overlay")
-
         # Crée une instance de la fenêtre si elle n'existe pas déjà
         helpwin = getattr(self, "_help_overlay_window", None)
         if not helpwin:
@@ -136,17 +135,30 @@ class GtkOllamaApplication(Adw.Application):
         # Fermer et détruire la boîte de dialogue
         dialog.close()
 
-    def on_active_conv(self, *args):
+    def on_new_conv(self, *args):
         self.props.active_window.active_toggle_button =  None
-        self.props.active_window.clear_messages_list()
-        self.props.active_window.toast_overlay.add_toast(Adw.Toast(title="Entrez un message pour débuter la nouvelle conversation"))
+        self.props.active_window._clear_messages()
+        self.props.active_window.conv_title.set_text("Aucune conversation en cours")
+        self.props.active_window._show_toast("Entrez un message pour débuter la nouvelle conversation")
 
-    def on_model_manage(self, *args):
-        manage_model_win =getattr(self, "manage_model", None)
-        if not manage_model_win:
-            manage_model_win = Manage_Model_Window()
-            self._help_overlay_window = manage_model_win
-        manage_model_win.present()
+    def on_view_change(self, *args):
+        main_stack = self.props.active_window.main_view_container
+        sidebar_stack = self.props.active_window.sidebar_container
+        current_view = main_stack.get_visible_child()
+
+        # Déterminer la prochaine vue à afficher
+        if current_view == self.props.active_window.chat_container:
+            main_stack.set_visible_child(self.props.active_window.manage_model_container)
+            sidebar_stack.set_visible_child(self.props.active_window.model_available_container)
+
+        else:
+            main_stack.set_visible_child(self.props.active_window.chat_container)
+            sidebar_stack.set_visible_child(self.props.active_window.conv_container)
+
+    def on_actualize_model(self, *args):
+        scrape_ollama_library()
+        self.props.active_window._load_models_find()
+
 
 def main(version):
     """The application's entry point."""

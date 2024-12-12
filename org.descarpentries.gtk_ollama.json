@@ -11,6 +11,12 @@
         "--device=dri",
         "--socket=wayland"
     ],
+
+     "build-options": {
+    	"files": {
+        "saves/ollama_models.json": "data/saves/ollama_models.json"
+    }
+},
     "cleanup" : [
         "/include",
         "/lib/pkgconfig",
@@ -44,6 +50,18 @@
         },
         "build-commands": [
             "pip3 install --prefix=/app --no-cache-dir ollama"
+        ]
+    },
+      {
+        "name": "beautifulsoup4",
+        "buildsystem": "simple",
+        "build-options": {
+          "build-args": [
+            "--share=network"
+          ]
+        },
+        "build-commands": [
+            "pip3 install --prefix=/app --no-cache-dir beautifulsoup4"
         ]
     },
         {

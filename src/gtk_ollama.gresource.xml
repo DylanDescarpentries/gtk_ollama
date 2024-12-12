@@ -3,7 +3,6 @@
   <gresource prefix="/org/descarpentries/gtk_ollama">
     <file preprocess="xml-stripblanks">window.ui</file>
     <file preprocess="xml-stripblanks">gtk/help_overlay/help-overlay.ui</file>
-    <file preprocess="xml-stripblanks">gtk/manage_model/manage_model.ui</file>
     <file>styles/styles.css</file>
   </gresource>
     <gresource prefix="/org/codeberg/vendillah/Clavier/icons">

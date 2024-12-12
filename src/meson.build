@@ -32,8 +32,8 @@ gtk_ollama_sources = [
   'window.py',
   'ollama_tools/ollama_client.py',
     'ollama_tools/ollama_model.py',
+    'ollama_tools/ollama_get_models.py',
   'gtk/help_overlay/help_overlay.py',
-  'gtk/manage_model/manage_model_window.py',
 ]
 
 install_data(gtk_ollama_sources, install_dir: moduledir)
