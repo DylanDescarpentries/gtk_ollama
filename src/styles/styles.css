@@ -9,7 +9,7 @@
 }
 
 /* Bouton d'envoi */
-.sendButton {
+.SendButton {
   border-radius: 50%;
   padding: 15px;
   background-color: #e62d42;
@@ -18,57 +18,56 @@
   box-shadow: 0 0 6px 3px #ebebeb;
 }
 
-model_title {
+/* Titre du modèle */
+.model_title {
   font-size: 24px;
-  font-weight: 700 ;
+  font-weight: 700;
 }
+
+/* Boutons génériques */
 button {
-  padding: 6px 8px 6px 8px;
+  padding: 6px 8px;
   font-weight: 1000;
   margin: 0;
-  }
-
-
-
-.sendButton:active {
-  /* Effet au clic */
-  transform: scale(0.99);
-  background-color: mix(@accent_color, #000000, 0.1); /* Accentuation modérée */
-    box-shadow: 0 0 4px 1px #ebebeb;
 }
 
+/* Bouton d'envoi : effet au clic */
+.SendButton:active {
+  transform: scale(0.99);
+  background-color: #d9233a; /* Couleur ajustée pour une meilleure lisibilité */
+  box-shadow: 0 0 4px 1px #ebebeb;
+}
+
+/* Liste */
 list {
   background-color: transparent;
 }
 
+/* Étiquettes */
 label {
   font-family: monospace;
 }
 
-.message_box {
-padding-top: 20px;
-  border-radius: 10px;
-  border: 1px solid #ebebeb;
-  box-shadow: 0 0 3px 1px #ebebeb;
-}
+/* Boîte de message */
 
+
+/* Titre de la conversation */
 .title_conv {
   font-weight: bold;
 }
 
-/* Box extérieure (contenant la box qui possède le grid) */
+/* Boîte extérieure (contenant la boîte avec la grille) */
 details_models {
-  padding: 10px; /* Augmenté pour mieux espacer */
-  border-radius: 8px; /* Légèrement plus arrondi */
-  margin-bottom: 20px; /* Espacement sous la boîte */
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 20px;
 }
 
-/* Grid contenant les labels */
-details_grid label{
-    padding: 5px;
-    border-right: 1px solid #ebebeb;
-    border-bottom: 1px solid #ebebeb;
-    border-radius: 5px;
+/* Grille contenant les étiquettes */
+details_grid label {
+  padding: 5px;
+  border-right: 1px solid #ebebeb;
+  border-bottom: 1px solid #ebebeb;
+  border-radius: 5px;
 }
-
 

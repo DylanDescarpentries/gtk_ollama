@@ -103,23 +103,23 @@ class Ollama_client:
         messages = self.prepare_messages(conversation, user_input)
         system = conversation.get('system')
         history_conv = conversation.get("history")
-        print(system)
         options = Options(
             temperature=temp,
+            system=system,
         )
         try:
             client = Client(host=self.api_url)
             response = client.chat(
                 model=model,
                 messages=messages,
-                options=options
+                options=options,
             )
             return response.get('message', {}).get('content', "Réponse vide du modèle.")
         except Exception as e:
             print(f"Erreur lors de la requête au modèle '{model}' : {e}")
             return "Une erreur est survenue. Veuillez réessayer."
 
-    def create_default_title(self, conversation):
+    def create_default_title(self, conversation) -> str:
         """
         Crée un titre par défaut pour une conversation.
         Le titre est basé sur les premiers mots de la requête utilisateur.

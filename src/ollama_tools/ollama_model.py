@@ -112,7 +112,6 @@ class Ollama_model:
         else:
             print(f"Aucune conversation trouvée avec l'ID {conv_id}.")
 
-
     def get_conversation(self, conv_id: int) -> int:
         """
         Récupère une conversation en fonction de son ID.

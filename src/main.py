@@ -138,6 +138,8 @@ class GtkOllamaApplication(Adw.Application):
     def on_new_conv(self, *args):
         self.props.active_window.active_toggle_button =  None
         self.props.active_window._clear_messages()
+        self.props.active_window.system_entry.get_buffer().set_text("")
+
         self.props.active_window.conv_title.set_text("Aucune conversation en cours")
         self.props.active_window._show_toast("Entrez un message pour débuter la nouvelle conversation")
 
