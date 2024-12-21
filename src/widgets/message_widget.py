@@ -3,12 +3,13 @@ gi.require_version('Gtk', '4.0')
 from gi.repository import Gtk, Gdk
 
 class Message_Widget(Gtk.Box):
-    def __init__(self, text, user, delete_callback):
+    def __init__(self, text, user, delete_callback, message_id):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=5)
         self.set_margin_top(10)
         self.set_margin_bottom(10)
         self.set_margin_start(15)
         self.set_margin_end(15)
+        self.message_id = message_id
 
         # Définir l'alignement principal
         self.set_halign(Gtk.Align.END if user else Gtk.Align.START)
@@ -71,4 +72,7 @@ class Message_Widget(Gtk.Box):
         """Callback pour le bouton supprimer."""
         if self.on_delete_callback:
             self.on_delete_callback(self)
+
+    def get_message_id(self):
+        return self.message_id
 

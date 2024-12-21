@@ -112,6 +112,26 @@ class Ollama_model:
         else:
             print(f"Aucune conversation trouvée avec l'ID {conv_id}.")
 
+    def delete_message_from_conversation(self, conv_id: int, message_id: int) -> None:
+        """
+        Supprime un message spécifique d'une conversation donnée.
+        Args:
+            conv_id (int): L'ID de la conversation contenant le message.
+            message_id (int): L'ID du message à supprimer.
+        """
+        # Trouver la conversation à partir de l'ID
+        conversation_to_update = next(
+            (conv for conv in self.conversations if conv['id'] == conv_id), None
+        )
+
+        if conversation_to_update:
+            # Supprimer le message de la conversation
+            conversation_to_update['history'] = [
+                msg for msg in conversation_to_update['history'] if msg['id'] != message_id
+            ]
+            self.save_to_file()  # Sauvegarder après modification
+        else:
+            print(f"Aucune conversation trouvée avec l'ID {conv_id}.")
     def get_conversation(self, conv_id: int) -> int:
         """
         Récupère une conversation en fonction de son ID.

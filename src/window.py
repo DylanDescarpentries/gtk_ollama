@@ -74,10 +74,10 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
         self.ollama_model = Ollama_model()
         self.ollama_client = Ollama_client()
         self.ollama_model.load_from_file()
+        self.message_id_counter = 0
 
         self.apply_styles()
         self._initialize_ui()
-
 
     def apply_styles(self) -> None:
         """Applique les styles CSS à l'interface."""
@@ -123,7 +123,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
         threading.Thread(target=self._fetch_response, args=(model, user_input), daemon = True).start()
 
     def delete_message(self, message_widget):
-        """Supprime un message de la conversation et met à jour l'interface."""
+        """Supprime un message de la conversation et met à jour l'interface et le fichier."""
         # Trouver le ListBoxRow correspondant à message_widget
         row_to_remove = None
         for row in self.messages_list:
@@ -132,8 +132,16 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
                 break
 
         if row_to_remove:
+            # Trouver l'ID de la conversation à partir du widget
+            conv_id = self.active_toggle_button.conversation_id if self.active_toggle_button else None
+
+            # Supprimer le message du modèle de données (conversation)
+            self.ollama_model.delete_message_from_conversation(conv_id, message_widget.get_message_id())  # Méthode à ajouter
+
             # Supprimer le row de la ListBox
             self.messages_list.remove(row_to_remove)
+
+            # Sauvegarder la conversation dans le fichier
             self.ollama_model.save_to_file()
 
     def on_trash_dialog_confirm(self, dialog, response) -> None:
@@ -229,8 +237,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
         row.set_child(label)
         self.messages_list.append(row)
         """
-
-        message = Message_Widget(text, user, self.delete_message)
+        message = Message_Widget(text, user, self.delete_message, self.message_id_counter +1)
         self.messages_list.append(message)
 
     def _clear_messages(self) -> None:
@@ -570,12 +577,23 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
         self._clear_messages()  # Réinitialiser les messages affichés
 
         for message in conversation["history"]:
+            # Ajouter un identifiant unique au message
+            message['id'] = self.generate_message_id()  # Méthode pour générer un ID unique
+
             # Déterminer si le message est envoyé par l'utilisateur ou l'assistant
             is_sent = message["role"] == "user"
 
             # Créer un widget MessageWidget pour chaque message
-            message_widget = Message_Widget(message["content"], is_sent, self.delete_message)
+            message_widget = Message_Widget(message["content"], is_sent, self.delete_message, message['id'])
 
-            # Ajouter le widget au conteneur de la fenêtre
-            self.messages_list.append(message_widget)
+            # Créer un ListBoxRow pour chaque message
+            list_box_row = Gtk.ListBoxRow()
+            list_box_row.set_child(message_widget)
 
+            # Ajouter le ListBoxRow à la messages_list
+            self.messages_list.append(list_box_row)
+
+    def generate_message_id(self):
+        """Génère un ID unique pour chaque message."""
+        self.message_id_counter += 1
+        return self.message_id_counter
