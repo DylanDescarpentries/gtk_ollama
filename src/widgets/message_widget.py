@@ -34,7 +34,7 @@ class Message_Widget(Gtk.Box):
                 background-color: #e0f7fa;
             }
             .message-received {
-                background-color: #f1f8e9;
+                background-color: #ffffff;
             }
             """
         )
@@ -58,21 +58,29 @@ class Message_Widget(Gtk.Box):
         main_container.append(header)
 
         # Corps : Texte du message
-        message_label = Gtk.Label(
+        self.message_label = Gtk.Label(
             label=text,
             wrap=True,
             halign=Gtk.Align.START if user else Gtk.Align.END
         )
-        message_label.set_margin_top(5)
-        message_label.set_margin_bottom(5)
-        main_container.append(message_label)
+        self.message_label.props.selectable = True
+        self.message_label.set_margin_top(5)
+        self.message_label.set_margin_bottom(5)
+        main_container.append(self.message_label)
 
+        # Rendre le message flexible
+        self.message_label.set_xalign(0.0 if user else 1.0)  # Ajuste l'alignement du texte
 
     def on_delete_clicked(self, button):
         """Callback pour le bouton supprimer."""
-        if self.on_delete_callback:
-            self.on_delete_callback(self)
+        if self.delete_callback:
+            self.delete_callback(self)
 
     def get_message_id(self):
         return self.message_id
+
+    def append_text(self, additional_text: str):
+        """Ajoute du texte au contenu existant."""
+        current_text = self.message_label.get_text()
+        self.message_label.set_text(current_text + additional_text)
 

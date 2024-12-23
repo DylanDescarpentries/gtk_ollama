@@ -122,7 +122,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
         self._add_message(user_input, True)
         threading.Thread(target=self._fetch_response, args=(model, user_input), daemon = True).start()
 
-    def delete_message(self, message_widget):
+    def delete_message(self, message_widget: Message_Widget) -> None:
         """Supprime un message de la conversation et met à jour l'interface et le fichier."""
         # Trouver le ListBoxRow correspondant à message_widget
         row_to_remove = None
@@ -144,7 +144,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
             # Sauvegarder la conversation dans le fichier
             self.ollama_model.save_to_file()
 
-    def on_trash_dialog_confirm(self, dialog, response) -> None:
+    def on_trash_dialog_confirm(self, dialog: Adw.MessageDialog, response: str) -> None:
         """Supprime la conversation active."""
         if response == "delete":
             conv_id = self.active_toggle_button.conversation_id if self.active_toggle_button else None
@@ -155,7 +155,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
             self.active_toggle_button = None
             self._load_conversations()
 
-    def on_trash_model_dialog_confirm(self, dialog, response) -> None:
+    def on_trash_model_dialog_confirm(self, dialog: Adw.MessageDialog, response: str) -> None:
         """Supprime le modele actif """
         model_name = self.active_toggle_button.model_data['name'] if self.active_toggle_button else "nom"
         self.ollama_client.delete_model(model_name)
@@ -200,14 +200,19 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
         self.ollama_model.save_to_file()
 
     def _create_new_conversation(self, model: str, user_input: str) -> None:
+        """Crée une nouvelle conversation et met à jour l'interface."""
         title = self.ollama_client.create_default_title({"user": user_input})
-        temp= self.temp_spin.get_value()
+        temp = self.temp_spin.get_value()
         self.sendSpinner.set_visible(True)
 
-        response = self.ollama_client.response(model=model, temp=temp, conversation={"system": self.system_entry_await}, user_input=user_input)
+        # Initialiser une réponse complète
+        full_response = self.stream_response(model=model, temp=temp, conversation={"system": self.system_entry_await}, user_input=user_input)
+
         self.sendSpinner.set_visible(False)
-        new_conv = self.ollama_model.add_conversation(model, title, user_input, response)
-        self._add_message(response, False)
+
+        # Ajouter la conversation au modèle avec la réponse complète
+        new_conv = self.ollama_model.add_conversation(model, title, user_input, full_response)
+        self._add_message(full_response, False)
         self._load_conversations()
 
         # Crée le bouton et l'assigne
@@ -221,22 +226,37 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
         if self.active_toggle_button:
             self.sendSpinner.set_visible(True)
             conv_id = self.active_toggle_button.conversation_id
-            temp=self.temp_spin.get_value()
+            temp = self.temp_spin.get_value()
             conversation = self.ollama_model.get_conversation(conv_id)
-            response = self.ollama_client.response(model=model, temp=temp, conversation=conversation, user_input=user_input)
-            self._update_conversation(conv_id, user_input, response)
+
+            # Ajouter un message temporaire pour le modèle (vide au début)
+
+            # Consommer le stream de réponse
+            full_response = self.stream_response(model=model, temp=temp, conversation=conversation, user_input=user_input)
+
             self.sendSpinner.set_visible(False)
+            self._update_conversation(conv_id, user_input, full_response)
         else:
             new_conversation = self._create_new_conversation(model, user_input)
 
+    def stream_response(self, model, temp, conversation, user_input) -> str:
+        temp_message = Message_Widget("", user=False, delete_callback=self.delete_message, message_id=self.message_id_counter + 1)
+        self.messages_list.append(temp_message)
+        full_response = ""
+        for chunk in self.ollama_client.response(model=model, temp=temp, conversation=conversation, user_input=user_input):
+            safe_chunk = chunk.encode('utf-8', errors='replace').decode('utf-8')
+            full_response += safe_chunk
+            GLib.idle_add(temp_message.append_text, safe_chunk)
+        return full_response
+
+    def _update_conversation(self, conv_id: str, user_input: str, response: str) -> None:
+        """Met à jour une conversation existante."""
+        self.ollama_model.update_conversation(conv_id, user_input, response)
+        self._load_conversations()
+        self.ollama_model.save_to_file()
+
     def _add_message(self, text: str, user: bool) -> None:
         """Ajoute un message à la liste des messages."""
-        """"
-      row = Gtk.ListBoxRow()
-        label = Gtk.Label(label=text, halign=Gtk.Align.START, wrap=True)
-        row.set_child(label)
-        self.messages_list.append(row)
-        """
         message = Message_Widget(text, user, self.delete_message, self.message_id_counter +1)
         self.messages_list.append(message)
 
@@ -261,7 +281,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
                 self.conversations_list.set_selection_mode(Gtk.SelectionMode.NONE)
                 self.conversations_list.append(row)
 
-    def _load_models_find(self):
+    def _load_models_find(self) -> None:
         """
         Charge les modèles locaux et distants depuis l'API et met à jour l'interface utilisateur.
         """
@@ -279,11 +299,20 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
             category_title="Modèles locaux",
             toggle_button_callback=self.on_model_selected,
         )
+        print(type(distant_models))
         self.add_model_category(
             models=distant_models,
             category_title="Modèles distant",
             toggle_button_callback=self.on_model_selected,
         )
+
+    def move_model_category(self, model: list, category_title: str):
+        self.add_model_category(
+        models=model,
+        category_title=category_title,
+        toggle_button_callback=self.on_model_selected,
+        )
+
 
     def compare_model_lists_find(self) -> list:
         """
@@ -301,7 +330,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
 
         return local_models, filtered_distant_models
 
-    def add_model_category(self, models, category_title, toggle_button_callback):
+    def add_model_category(self, models: list, category_title: str, toggle_button_callback) -> None:
         """
         Ajoute une catégorie de modèles avec un header et des boutons pour chaque modèle.
 
@@ -414,10 +443,13 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
             self.distant_buttons_options.append(progress_bar)
             self.model_progress_bars[model_name] = progress_bar
 
+            #mettre à jour sa catégorie
+            self.move_model_category(self.active_toggle_button.model_data, "model en cours de téléchargement...",)
+
         # Démarrer le téléchargement dans un thread séparé
         threading.Thread(target=self.downloading_model, args=(model_name,), daemon=True).start()
 
-    def downloading_model(self, model_name):
+    def downloading_model(self, model_name: str):
         """
         Télécharge et met à jour la barre de progresssion
         """
@@ -527,7 +559,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
             # Construire les informations du modèle
             self._build_model_infos(button.model_data)
 
-    def _build_model_infos(self, data):
+    def _build_model_infos(self, data: list):
         if data:
             # Liste des clés autorisées à afficher
             allowed_keys = {"name", "model", "modified_at", "size", "pulls", "tags", "last_updated", "description"}
@@ -593,7 +625,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
             # Ajouter le ListBoxRow à la messages_list
             self.messages_list.append(list_box_row)
 
-    def generate_message_id(self):
+    def generate_message_id(self) -> int:
         """Génère un ID unique pour chaque message."""
         self.message_id_counter += 1
         return self.message_id_counter

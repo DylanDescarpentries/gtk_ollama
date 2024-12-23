@@ -83,7 +83,6 @@ class Ollama_model:
         return False
 
     def update_system_model(self, conv_id, system_entry: str) -> bool:
-        print(system_entry)
         for conv in self.conversations:
             if conv.get("id") == conv_id:
                 if 'system' not in conv:
@@ -132,6 +131,7 @@ class Ollama_model:
             self.save_to_file()  # Sauvegarder après modification
         else:
             print(f"Aucune conversation trouvée avec l'ID {conv_id}.")
+
     def get_conversation(self, conv_id: int) -> int:
         """
         Récupère une conversation en fonction de son ID.
@@ -169,6 +169,7 @@ class Ollama_model:
         file_path = f"{os.path.expanduser('~')}/saves/saves.json"
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(self.conversations, f, ensure_ascii=False, indent=4)
+
 
     def load_from_file(self, file_path= f"{os.path.expanduser('~')}/saves/saves.json") -> None:
         """

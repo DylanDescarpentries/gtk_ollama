@@ -250,6 +250,7 @@
                                           <object class="GtkLabel" id="conv_title">
                                             <property name="justify">right</property>
                                             <property name="label">Aucune conversation en cours</property>
+                                            <property name="selectable">True</property>
                                             <style>
                                               <class name="title_conv"/>
                                             </style>
@@ -309,7 +310,6 @@
                                         <property name="margin-end">10</property>
                                         <property name="margin-start">10</property>
                                         <property name="margin-top">20</property>
-                                        <property name="show-separators">True</property>
                                         <property name="vexpand-set">True</property>
                                       </object>
                                     </child>
@@ -321,6 +321,9 @@
                               <class name="message_box"/>
                             </style>
                           </object>
+                        </child>
+                        <child>
+                          <object class="GtkSeparator"/>
                         </child>
                         <child>
                           <object class="GtkButton" id="conv_option_set_visible">

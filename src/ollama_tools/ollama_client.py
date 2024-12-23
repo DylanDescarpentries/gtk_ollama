@@ -1,5 +1,5 @@
 import os, requests, json
-from ollama import Client, Options
+from ollama import Client, Options, generate
 
 class Ollama_client:
     def __init__(self, api_url="http://127.0.0.1:11434") -> None:
@@ -32,7 +32,6 @@ class Ollama_client:
             file_path (str): Le chemin du fichier contenant les données JSON.
         """
         try:
-            print(file_path)
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read().strip()
                 if content:
@@ -91,33 +90,36 @@ class Ollama_client:
 
         return messages
 
+
     def response(self, model, user_input, conversation, temp):
         """
-        Envoie une requête au modèle avec l'historique de la conversation et le message utilisateur.
-        Args:
-            model (str): Le nom du modèle utilisé.
-            user_input (str): Le message de l'utilisateur.
-        Returns:
-            str: La réponse du modèle ou un message d'erreur.
+        Envoie une requête au modèle et retourne un générateur pour le streaming avec un historique de conversation.
         """
         messages = self.prepare_messages(conversation, user_input)
-        system = conversation.get('system')
-        history_conv = conversation.get("history")
+        messages.append({"role": "user", "content": user_input})
+
+        system = conversation.get('system', '')
         options = Options(
             temperature=temp,
             system=system,
         )
+
         try:
             client = Client(host=self.api_url)
             response = client.chat(
                 model=model,
                 messages=messages,
                 options=options,
+                stream=True,
             )
-            return response.get('message', {}).get('content', "Réponse vide du modèle.")
+
+            for part in response:
+                # Vérifiez si part est un tuple avec deux éléments
+                # Extraire et transmettre le contenu
+                yield (part['message']['content'])
+
         except Exception as e:
-            print(f"Erreur lors de la requête au modèle '{model}' : {e}")
-            return "Une erreur est survenue. Veuillez réessayer."
+            yield f"Erreur lors de la requête au modèle '{model}' : {e}"
 
     def create_default_title(self, conversation) -> str:
         """
@@ -145,8 +147,6 @@ class Ollama_client:
     def pull_model(self, name_model):
         url = f"{self.api_url}/api/pull"
         data = {"model": name_model}
-        print("URL:", url)
-        print("Payload:", data)
 
         response = requests.post(url, json=data, stream=True)
         print("Response status:", response.status_code)
