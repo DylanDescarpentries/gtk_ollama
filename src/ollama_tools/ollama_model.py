@@ -88,7 +88,6 @@ class Ollama_model:
                 if 'system' not in conv:
                     conv['system'] = "" # Initialiser le champ "system" si nécessaire
                 conv['system'] = system_entry # Mettre à jour l'entrée "system"
-                print(conv['system'])
                 return True
         return False
 

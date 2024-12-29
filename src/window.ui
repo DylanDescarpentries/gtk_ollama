@@ -302,10 +302,11 @@
                             <child>
                               <object class="AdwToastOverlay" id="toast_overlay">
                                 <child>
-                                  <object class="GtkScrolledWindow">
+                                  <object class="GtkScrolledWindow" id="scrolled_messages">
                                     <property name="vexpand">True</property>
                                     <child>
                                       <object class="GtkListBox" id="messages_list">
+                                        <property name="hexpand-set">True</property>
                                         <property name="margin-bottom">20</property>
                                         <property name="margin-end">10</property>
                                         <property name="margin-start">10</property>

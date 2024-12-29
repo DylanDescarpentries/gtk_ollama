@@ -24,10 +24,10 @@ gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 
 from gi.repository import Gtk, Gio, Adw
-from .window import GtkOllamaWindow
-from .help_overlay import Help_Overlay_ShortcutsWindow
-from .ollama_model import Ollama_model
-from .ollama_get_models import scrape_ollama_library
+from .window import GtkOllamaWindow # type: ignore
+from .help_overlay import Help_Overlay_ShortcutsWindow # type: ignore
+from .ollama_model import Ollama_model # type: ignore
+from .ollama_get_models import scrape_ollama_library # type: ignore
 
 
 class GtkOllamaApplication(Adw.Application):
@@ -79,8 +79,8 @@ class GtkOllamaApplication(Adw.Application):
                                 version='0.1.0',
                                 developers=['Dylan'],
                                 copyright='© 2024 Dylan')
-        # Translators: Replace "translator-credits" with your name/username, and optionally an email or URL.
-        about.set_translator_credits(_('translator-credits'))
+
+        about.set_translator_credits(_('translator-credits')) # type: ignore
         about.present(self.props.active_window)
 
     def on_help_action(self, *args):

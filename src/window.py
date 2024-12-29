@@ -21,9 +21,9 @@ from typing import List, Optional, Dict, Union
 
 import json, threading
 from gi.repository import Adw, Gtk, Gdk, Gio, GLib
-from .ollama_client import Ollama_client
-from .ollama_model import Ollama_model
-from .message_widget import Message_Widget
+from .ollama_client import Ollama_client # type: ignore
+from .ollama_model import Ollama_model # type: ignore
+from .message_widget import Message_Widget # type: ignore
 
 @Gtk.Template(resource_path="/org/descarpentries/gtk_ollama/window.ui")
 class GtkOllamaWindow(Adw.ApplicationWindow):
@@ -38,6 +38,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
     model_available_container = Gtk.Template.Child()
 
     # Déclarations des enfants de l'interface principale
+    scrolled_messages: Gtk.ScrolledWindow = Gtk.Template.Child()
     combo_models_list: Gtk.ComboBoxText = Gtk.Template.Child()
     user_entry: Gtk.TextView = Gtk.Template.Child()
     system_entry: Gtk.TextView = Gtk.Template.Child()
@@ -60,6 +61,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
     local_buttons_options: Gtk.Box = Gtk.Template.Child()
     distant_buttons_options: Gtk.Box = Gtk.Template.Child()
     download_model_button: Gtk.Button = Gtk.Template.Child()
+    
 
     # Déclarations des variables transversales
     toggle_buttons_conv: List[Gtk.ToggleButton] = []
@@ -70,11 +72,16 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
 
     def __init__(self, **kwargs: Dict[str, Union[str, int, float]]) -> None:
         super().__init__(**kwargs)
+        display = Gdk.Display.get_default()
+        if not display:
+            print("Erreur : Impossible d'initialiser l'affichage GTK")
+            return
         self.action_rows = []
         self.ollama_model = Ollama_model()
         self.ollama_client = Ollama_client()
         self.ollama_model.load_from_file()
         self.message_id_counter = 0
+        self.downloading_models = None
 
         self.apply_styles()
         self._initialize_ui()
@@ -120,8 +127,15 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
             return
 
         self._add_message(user_input, True)
-        threading.Thread(target=self._fetch_response, args=(model, user_input), daemon = True).start()
-
+        self.scroll_to_bottom()
+        GLib.Thread.new("fetch_response", self._fetch_response, model, user_input)
+        
+    def scroll_to_bottom(self):
+        """Fait défiler la ScrolledWindow vers le bas."""
+        adj = self.scrolled_messages.get_vadjustment()
+        adj.set_value(adj.get_upper() - adj.get_page_size())
+        return False  # Arrête l'idle_add une fois exécuté
+    
     def delete_message(self, message_widget: Message_Widget) -> None:
         """Supprime un message de la conversation et met à jour l'interface et le fichier."""
         # Trouver le ListBoxRow correspondant à message_widget
@@ -229,8 +243,6 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
             temp = self.temp_spin.get_value()
             conversation = self.ollama_model.get_conversation(conv_id)
 
-            # Ajouter un message temporaire pour le modèle (vide au début)
-
             # Consommer le stream de réponse
             full_response = self.stream_response(model=model, temp=temp, conversation=conversation, user_input=user_input)
 
@@ -247,6 +259,8 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
             safe_chunk = chunk.encode('utf-8', errors='replace').decode('utf-8')
             full_response += safe_chunk
             GLib.idle_add(temp_message.append_text, safe_chunk)
+            self.scroll_to_bottom()
+        temp_message.extract_docstring(full_response)
         return full_response
 
     def _update_conversation(self, conv_id: str, user_input: str, response: str) -> None:
@@ -272,6 +286,16 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
             for conversation in self.ollama_model.get_all_conversations():
                 button = Gtk.ToggleButton(label=conversation["title"])
                 button.set_has_frame(False)
+                button.set_hexpand(True)
+                button.set_halign(Gtk.Align.FILL)  # Le bouton prend toute la largeur
+                
+                # Créer un conteneur pour aligner le texte à gauche
+                box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+                label = Gtk.Label(label=conversation["title"])
+                label.set_halign(Gtk.Align.START)
+                box.append(label)
+                button.set_child(box)
+                
                 button.conversation_id = conversation["id"]
                 button.connect("toggled", self.on_conversation_selected)
                 self.toggle_buttons_conv.append(button)
@@ -294,12 +318,17 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
         self.toggle_buttons_models.clear()
         self.model_find.remove_all()
         # Ajouter les modèles locaux
+        if self.downloading_models:
+            self.add_model_category(
+                models=self.downloading_models,
+                category_title="Modele en cours de Téléchargement...",
+                toggle_button_callback=self.on_model_selected,
+            )
         self.add_model_category(
             models=local_models,
             category_title="Modèles locaux",
             toggle_button_callback=self.on_model_selected,
         )
-        print(type(distant_models))
         self.add_model_category(
             models=distant_models,
             category_title="Modèles distant",
@@ -307,12 +336,13 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
         )
 
     def move_model_category(self, model: list, category_title: str):
-        self.add_model_category(
-        models=model,
-        category_title=category_title,
-        toggle_button_callback=self.on_model_selected,
-        )
-
+        if not self.downloading_models:
+            self.downloading_models = []
+            self.downloading_models.append(model)
+            self._load_models_find()
+        else:
+            self.downloading_models.append(model)
+            self._load_models_find()
 
     def compare_model_lists_find(self) -> list:
         """
@@ -354,6 +384,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
                 button.set_has_frame(False)
                 button.model_data = model_data
                 button.connect("toggled", toggle_button_callback)
+                button.set_halign(Gtk.Align.START)  # Aligne le bouton à droite
                 self.toggle_buttons_models.append(button)
 
                 # Créer une ligne pour chaque bouton de modèle
@@ -374,12 +405,12 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
         if conv_id:
             system = self.ollama_model.get_conversation(conv_id).get('system')
             if system:
-                self.system_entry.get_buffer().set_text(system)
+                self.system_entry.get_buffer().set_text(str(system))
 
         # Associer le dialogue modal à cette fenêtre comme parent
         self.custom_option_modal.set_transient_for(self)
         # Rendre la boîte de dialogue visible
-        self.custom_option_modal.present()
+        GLib.idle_add(self.custom_option_modal.present)
 
     @Gtk.Template.Callback()
     def on_confirm_personnalize_system(self, button: Gtk.Button):
@@ -624,6 +655,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
 
             # Ajouter le ListBoxRow à la messages_list
             self.messages_list.append(list_box_row)
+            self.scroll_to_bottom()
 
     def generate_message_id(self) -> int:
         """Génère un ID unique pour chaque message."""
