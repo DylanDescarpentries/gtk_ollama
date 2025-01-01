@@ -76,6 +76,13 @@
                     "url" : "file:///home/dylan/Documents/Programmation/Projet/Application/Gnome_Builder_Projects/gtk_ollama/"
                 }
             ]
-        }
+        },
+        {
+          "name": "pytest",
+          "buildsystem": "simple",
+          "build-commands": [
+              "pip3 install pytest"
+          ]
+      }
     ]
 }

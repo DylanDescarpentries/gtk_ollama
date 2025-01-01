@@ -93,10 +93,10 @@ class Ollama_client:
 
     def response(self, model, user_input, conversation, temp):
         """
-        Envoie une requête au modèle et retourne un générateur pour le streaming avec un historique de conversation.
+        Envoie une requête au modèle et retourne un générateur pour le streaming.
         """
+        # Prépare les messages (inclut déjà le message utilisateur)
         messages = self.prepare_messages(conversation, user_input)
-        messages.append({"role": "user", "content": user_input})
 
         system = conversation.get('system', '')
         options = Options(
@@ -114,8 +114,6 @@ class Ollama_client:
             )
 
             for part in response:
-                # Vérifiez si part est un tuple avec deux éléments
-                # Extraire et transmettre le contenu
                 yield (part['message']['content'])
 
         except Exception as e:

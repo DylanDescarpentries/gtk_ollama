@@ -27,6 +27,7 @@ class Message_Widget(Gtk.Box):
         self.append(main_container)
 
         # Appliquer les classes CSS
+        
         css_provider = Gtk.CssProvider()
         css_provider.load_from_data(
             b"""
@@ -35,12 +36,7 @@ class Message_Widget(Gtk.Box):
                 box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
                 padding: 10px;
             }
-            .message-user {
-                background-color: #e0f7fa;
-            }
-            .message-received {
-                background-color: #ffffff;
-            }
+
             .message-textview {
                 background: transparent;
                 color: inherit;
@@ -53,7 +49,7 @@ class Message_Widget(Gtk.Box):
             Gtk.STYLE_PROVIDER_PRIORITY_USER
         )
         main_container.add_css_class("box_message")
-        main_container.add_css_class("message-user" if user else "message-received")
+        # main_container.add_css_class("message-user" if user else "message-received")
 
         # Header : Boutons (modifier, supprimer)
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
@@ -101,19 +97,68 @@ class Message_Widget(Gtk.Box):
         
     def extract_docstring(self, text: str) -> list[str]:
         """Extrait tous les blocs de texte situés entre ``` dans une chaîne donnée."""
-        # Pattern pour capturer les blocs entre ``` et ```
-        pattern = r"```(.*?)```"
+        # Pattern pour capturer le langage et le code entre ``` et ```
+        pattern = r"```(\w*)\n(.*?)```"
         
         # Utilisation de re.findall pour récupérer tous les blocs correspondants
         blocks = re.findall(pattern, text, re.DOTALL)
         
-        # Filtrer les blocs vides et les nettoyer
-        commands = [block.strip() for block in blocks if block.strip()]
-        
-        if commands:
-            print(commands)
-            return commands
+        # Traiter chaque bloc pour déterminer son langage
+        processed_blocks = []
+        for lang, code in blocks:
+            code = code.strip()
+            if not code:
+                continue
+                
+            # Si le langage n'est pas spécifié, essayer de le détecter
+            if not lang:
+                lang = self._detect_language(code)
+                
+            processed_blocks.append((code, lang))
+            
+        if processed_blocks:
+            return processed_blocks
         return []
+
+    def _detect_language(self, code: str) -> str:
+        """Détecte le langage de programmation à partir du contenu du code."""
+        # Indicateurs simples pour différents langages
+        indicators = {
+            'python': [
+                'import ', 'def ', 'print(', 'return ', 'class ', 
+                'if __name__ == "__main__":', '#'
+            ],
+            'java': [
+                'public class', 'private', 'protected', 'void ', 
+                'System.out.println', ';', 'import java.'
+            ],
+            'shell': [
+                'mkdir', 'cd ', 'ls ', 'echo ', 'sudo ', 'apt ', 
+                'yum ', 'chmod', 'chown', '#!/bin/bash'
+            ],
+            'c': [
+                '#include', 'int main(', 'printf(', 'scanf(',
+                'void ', 'struct ', 'typedef'
+            ]
+        }
+        
+        # Compter les occurrences d'indicateurs pour chaque langage
+        scores = {lang: 0 for lang in indicators}
+        
+        for lang, patterns in indicators.items():
+            for pattern in patterns:
+                if pattern in code:
+                    scores[lang] += 1
+        
+        print("recherche du langage...")
+        # Retourner le langage avec le score le plus élevé
+        if any(scores.values()):
+            language = max(scores.items(), key=lambda x: x[1])[0]
+            print("language : ", language)
+            return max(scores.items(), key=lambda x: x[1])[0]
+        print("aucun langage trouvé")
+        # Par défaut, considérer comme du shell si aucun langage n'est clairement identifié
+        return 'shell'
 
     def execute_shell_command(self, commands: list[str]) -> list[str]:
         """Exécute une liste de commandes shell sur l'hôte Fedora Linux et renvoie leurs sorties."""
