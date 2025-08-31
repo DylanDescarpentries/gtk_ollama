@@ -165,12 +165,12 @@ class Ollama_model:
         """
         Sauvegarde les conversations dans un fichier JSON.
         """
-        file_path = f"{os.path.expanduser('~')}/saves/saves.json"
+        file_path = f"{os.path.expanduser('~')}/Documents/saves_ollama/saves.json"
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(self.conversations, f, ensure_ascii=False, indent=4)
 
 
-    def load_from_file(self, file_path= f"{os.path.expanduser('~')}/saves/saves.json") -> None:
+    def load_from_file(self, file_path= f"{os.path.expanduser('~')}/Documents/saves_ollama/saves.json") -> None:
         """
         Charge les conversations à partir d'un fichier JSON.
         Args:

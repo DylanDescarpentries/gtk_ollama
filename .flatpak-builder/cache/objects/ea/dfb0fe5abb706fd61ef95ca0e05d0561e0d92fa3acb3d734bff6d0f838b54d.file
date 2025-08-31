@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<schemalist gettext-domain="gtk_ollama">
-	<schema id="org.descarpentries.gtk_ollama" path="/org/descarpentries/gtk_ollama/">
-	</schema>
-</schemalist>

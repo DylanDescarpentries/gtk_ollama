@@ -17,17 +17,20 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-import sys, requests, ollama
-import gi
+import sys # type: ignore
+import gi, os, subprocess, threading
 
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 
 from gi.repository import Gtk, Gio, Adw
 from .window import GtkOllamaWindow # type: ignore
+from pathlib import Path
 from .help_overlay import Help_Overlay_ShortcutsWindow # type: ignore
 from .ollama_model import Ollama_model # type: ignore
 from .ollama_get_models import scrape_ollama_library # type: ignore
+
+from gradio_client import Client
 
 
 class GtkOllamaApplication(Adw.Application):
@@ -44,6 +47,10 @@ class GtkOllamaApplication(Adw.Application):
         self.create_action('new_conv', self.on_new_conv, ['<primary>n'])
         self.create_action('change_view', self.on_view_change)
         self.create_action('actualize_model', self.on_actualize_model)
+        self.create_action('closed_window', self.on_close_window)
+        
+        # methode exporter par dbus
+        self.lookup_action("closed_window").set_enabled(True)
 
     def do_activate(self):
         """Called when the application is activated.
@@ -70,6 +77,11 @@ class GtkOllamaApplication(Adw.Application):
         self.add_action(action)
         if shortcuts:
             self.set_accels_for_action(f"app.{name}", shortcuts)
+
+    def on_close_window(self, *args):
+        win = self.props.active_window
+        if win:
+            win.hide()
 
     def on_about_action(self, *args):
         """Callback for the app.about action."""
@@ -141,7 +153,7 @@ class GtkOllamaApplication(Adw.Application):
         self.props.active_window.system_entry.get_buffer().set_text("")
 
         self.props.active_window.conv_title.set_text("Aucune conversation en cours")
-        self.props.active_window._show_toast("Entrez un message pour débuter la nouvelle conversation")
+        self.props.active_window.show_toast("Entrez un message pour débuter la nouvelle conversation")
 
     def on_view_change(self, *args):
         main_stack = self.props.active_window.main_view_container
@@ -158,11 +170,29 @@ class GtkOllamaApplication(Adw.Application):
             sidebar_stack.set_visible_child(self.props.active_window.conv_container)
 
     def on_actualize_model(self, *args):
-        scrape_ollama_library()
-        self.props.active_window._load_models_find()
+        # Affiche le spinner / vue "searching"
+        self.props.active_window.stack_model_buttons_options.set_visible_child(
+            self.props.active_window.searching_available_models
+        )
 
+        def background_scrape():
+            # Appelle le scraper dans le thread secondaire
+            scrape_ollama_library()
+
+            # Une fois terminé, met à jour l'UI dans le thread principal
+            GLib.idle_add(finish_scrape_ui_update, self)
+
+        def finish_scrape_ui_update(self_self):
+            # Recharge les modèles et affiche le contenu final
+            self_self.props.active_window._load_models_find()
+            self_self.props.active_window.stack_model_buttons_options.set_visible_child(
+                self_self.props.active_window.distant_buttons_options
+            )
+            return False  # Retourne False pour que GLib.idle_add ne rappelle pas la fonction
+
+        # Lancement du thread
+        threading.Thread(target=background_scrape, daemon=True).start()
 
 def main(version):
-    """The application's entry point."""
     app = GtkOllamaApplication()
     return app.run(sys.argv)

@@ -5,53 +5,79 @@ import requests
 import json
 import os
 
-def scrape_ollama_library():
-    input_file_path = f"{os.path.expanduser('~')}/saves/ollama_models_html.txt"
-    output_file_path = f"{os.path.expanduser('~')}/saves/ollama_models.json"
+import os
+import requests
+import json
+from bs4 import BeautifulSoup
 
-    # Create the './code/' directory if it doesn't exist
-    os.makedirs(f'{os.path.expanduser('~')}/saves/', exist_ok=True)
+def scrape_ollama_library():
+    input_file_path = f"{os.path.expanduser('~')}/Documents/saves_ollama/ollama_models_html.txt"
+    output_file_path = f"{os.path.expanduser('~')}/Documents/saves_ollama/ollama_models.json"
+    url = "https://ollama.com/search"
+
+    # Crée le dossier si nécessaire
+    os.makedirs(f'{os.path.expanduser("~")}/Documents/saves_ollama/', exist_ok=True)
+
+    # Récupération du HTML
     if os.path.exists(input_file_path):
         print("Reading from existing file...")
-        print(f"fichier existant : {output_file_path}")
         with open(input_file_path, 'r', encoding='utf-8') as file:
             content = file.read()
     else:
         print("Scraping website...")
-        url = "https://ollama.com/search"
         response = requests.get(url)
-
         if response.status_code != 200:
             print(f"Failed to retrieve the page. Status code: {response.status_code}")
             return
-
         content = response.text
-
-        # Save the raw HTML content to file
         with open(input_file_path, 'w', encoding='utf-8') as file:
             file.write(content)
 
-    # Parse the content and extract information
+    # Parser le contenu principal
     soup = BeautifulSoup(content, 'html.parser')
-    models = parse_content(soup)
-    print(models)
+    models = parse_content(soup)  # informations principales
 
-    # Print the extracted information
+    # Récupérer les versions pour chaque modèle
+    for model in models:
+        model_name = model.get('name')
+        if not model_name:
+            continue
+
+        model_url = f"https://ollama.com/library/{model_name}"
+        
+        print(f"url models : {model_url}")
+        response = requests.get(model_url)
+        if response.status_code != 200:
+            print(f"Failed to retrieve page for {model_name}. Status code: {response.status_code}")
+            continue
+
+        model_soup = BeautifulSoup(response.text, 'html.parser')
+        versions = parse_model_versions(model_soup)  # versions du modèle
+        model['versions'] = versions
+
+    # Affichage formaté
     for model in models:
         print(f"Name: {model.get('name', 'N/A')}")
         print(f"Description: {model.get('description', 'N/A')}")
-        if 'sizes' in model:
-            print(f"Sizes: {', '.join(model['sizes'])}")
         print(f"Pulls: {model.get('pulls', 'N/A')}")
         print(f"Tags: {model.get('tags', 'N/A')}")
         print(f"Last Updated: {model.get('last_updated', 'N/A')}")
+        if 'versions' in model and model['versions']:
+            print("Versions:")
+            for version in model['versions']:
+                print(f"  - Name: {version.get('name', 'N/A')}")
+                print(f"    Latest: {version.get('latest', 'N/A')}")
+                print(f"    Size: {version.get('size', 'N/A')}")
+                print(f"    Context: {version.get('context', 'N/A')}")
+                print(f"    Input: {version.get('input', 'N/A')}")
         print("-" * 50)
 
-    # Save the extracted information to output file as JSON
+    # Sauvegarder en JSON
     with open(output_file_path, 'w', encoding='utf-8') as file:
         json.dump(models, file, indent=2)
 
     print(f"Extracted information saved to {output_file_path}")
+
 
 def parse_content(soup):
     models = []
@@ -97,3 +123,65 @@ def parse_content(soup):
 
     return models
 
+def parse_model_versions(soup):
+    """
+    Parse the Ollama library HTML and extract model versions in a format
+    similar to parse_content().
+    """
+    models = []
+
+    # Desktop entries
+    desktop_entries = soup.select("div.sm\\:grid")
+    for entry in desktop_entries:
+        model = {}
+
+        # Name
+        name_tag = entry.select_one("span.col-span-6 a")
+        if name_tag:
+            model['name'] = name_tag.text.strip()
+
+        # Latest badge
+        latest_tag = entry.select_one("span.ml-2")
+        if latest_tag:
+            model['latest'] = latest_tag.text.strip()
+
+        # Sizes, context, input
+        size_tag = entry.select_one("p.col-span-2:nth-of-type(1)")
+        if size_tag:
+            model['size'] = size_tag.text.strip()
+
+        context_tag = entry.select_one("p.col-span-2:nth-of-type(2)")
+        if context_tag:
+            model['context'] = context_tag.text.strip()
+
+        input_tag = entry.select_one("p.col-span-2:nth-of-type(3)")
+        if input_tag:
+            model['input'] = input_tag.text.strip()
+
+        models.append(model)
+
+    # Mobile entries
+    mobile_entries = soup.select("a.sm\\:hidden")
+    for entry in mobile_entries:
+        model = {}
+
+        # Name
+        name_tag = entry.select_one("p.font-medium")
+        if name_tag:
+            model['name'] = name_tag.text.strip()
+
+        # Info string
+        info_tag = entry.select_one("p.text-neutral-500")
+        if info_tag:
+            parts = [p.strip() for p in info_tag.text.strip().split("·")]
+            if len(parts) >= 3:
+                model['size'] = parts[0]
+                model['context'] = parts[1]
+                model['input'] = parts[2]
+
+        # Pas de badge latest pour mobile
+        model['latest'] = None
+
+        models.append(model)
+
+    return models

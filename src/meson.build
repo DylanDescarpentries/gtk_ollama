@@ -31,10 +31,11 @@ gtk_ollama_sources = [
   'main.py',
   'window.py',
   'ollama_tools/ollama_client.py',
-    'ollama_tools/ollama_model.py',
-    'ollama_tools/ollama_get_models.py',
+  'ollama_tools/ollama_model.py',
+  'ollama_tools/ollama_get_models.py',
   'gtk/help_overlay/help_overlay.py',
-  'widgets/message_widget.py'
+  'widgets/message_widget.py',
+  'utils/voice_recognizer.py'
 ]
 
 install_data(gtk_ollama_sources, install_dir: moduledir)

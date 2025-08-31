@@ -19,11 +19,14 @@
 
 from typing import List, Optional, Dict, Union
 
-import json, threading
-from gi.repository import Adw, Gtk, Gdk, Gio, GLib
+import threading
+import time
+from gi.repository import Adw, Gtk, Gdk, GLib
 from .ollama_client import Ollama_client # type: ignore
 from .ollama_model import Ollama_model # type: ignore
 from .message_widget import Message_Widget # type: ignore
+from .voice_recognizer import VoiceRecognizer
+
 
 @Gtk.Template(resource_path="/org/descarpentries/gtk_ollama/window.ui")
 class GtkOllamaWindow(Adw.ApplicationWindow):
@@ -36,6 +39,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
     sidebar_container = Gtk.Template.Child()
     conv_container = Gtk.Template.Child()
     model_available_container = Gtk.Template.Child()
+    searching_available_models = Gtk.Template.Child()
 
     # Déclarations des enfants de l'interface principale
     scrolled_messages: Gtk.ScrolledWindow = Gtk.Template.Child()
@@ -79,6 +83,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
         self.action_rows = []
         self.ollama_model = Ollama_model()
         self.ollama_client = Ollama_client()
+        self.voice_recognizer = VoiceRecognizer(modele="small")
         self.ollama_model.load_from_file()
         self.message_id_counter = 0
         self.downloading_models = None
@@ -119,16 +124,33 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
         """Gestionnaire d'événements pour l'envoi d'un message."""
         model = self.combo_models_list.get_active_text()
         if not model:
-            self._show_toast("Aucun modèle actif")
+            self.show_toast("Aucun modèle actif")
             return
         user_input = self._get_user_input()
         if not user_input:
-            self._show_toast("Saisie utilisateur vide")
+            self.show_toast("Saisie utilisateur vide")
             return
 
-        self._add_message(user_input, True)
+        self.add_message(user_input, True)
         self.scroll_to_bottom()
-        GLib.Thread.new("fetch_response", self._fetch_response, model, user_input)
+        GLib.Thread.new("fetch_response", self.fetch_response, model, user_input)
+    
+    @Gtk.Template.Callback()
+    def on_speak_button_clicked(self, button: Gtk.Button) -> None:
+        button.set_sensitive(False)
+        
+        def on_transcription_complete(texte):
+            self.on_transcription_done(texte, button)
+            self.user_entry.get_buffer().set_text(texte)
+            self.on_send_button_clicked(texte)
+        
+        # Utilise la méthode asynchrone intégrée
+        self.voice_recognizer.transcrire_micro_async(on_transcription_complete)
+
+    def on_transcription_done(self, texte, button):
+        print(f"Résultat: {texte}")
+        button.set_sensitive(True)
+        return False
         
     def scroll_to_bottom(self):
         """Fait défiler la ScrolledWindow vers le bas."""
@@ -208,68 +230,146 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
 
     def _update_conversation(self, conv_id: str, user_input: str, response: str) -> None:
         """Met à jour une conversation existante."""
-        self._add_message(response, False)
         self.ollama_model.update_conversation(conv_id, user_input, response)
         self._load_conversations()
         self.ollama_model.save_to_file()
 
     def _create_new_conversation(self, model: str, user_input: str) -> None:
         """Crée une nouvelle conversation et met à jour l'interface."""
-        title = self.ollama_client.create_default_title({"user": user_input})
-        temp = self.temp_spin.get_value()
-        self.sendSpinner.set_visible(True)
-
-        # Initialiser une réponse complète
-        full_response = self.stream_response(model=model, temp=temp, conversation={"system": self.system_entry_await}, user_input=user_input)
-
-        self.sendSpinner.set_visible(False)
-
-        # Ajouter la conversation au modèle avec la réponse complète
-        new_conv = self.ollama_model.add_conversation(model, title, user_input, full_response)
-        self._add_message(full_response, False)
-        self._load_conversations()
-
-        # Crée le bouton et l'assigne
-        self.active_toggle_button = self._create_conversation_button(new_conv)
-        # Active le bouton pour refléter correctement l'état
-        self.active_toggle_button.set_active(True)
-        self.ollama_model.save_to_file()
-
-    def _fetch_response(self, model: str, user_input: str) -> None:
-        """Récupère une réponse et met à jour l'interface en conséquence."""
-        if self.active_toggle_button:
+        def show_spinner():
             self.sendSpinner.set_visible(True)
+
+        def hide_spinner():
+            self.sendSpinner.set_visible(False)
+
+        def update_ui_after_response(full_response, new_conv):
+            """Met à jour l'UI après réception de la réponse complète."""
+            try:
+                # Ajouter le message à l'interface
+                self.add_message(full_response, False)
+
+                # Recharger les conversations
+                self._load_conversations()
+
+                # Créer et activer le bouton de conversation
+                self.active_toggle_button = self._create_conversation_button(new_conv)
+                self.active_toggle_button.set_active(True)
+
+                # Sauvegarder
+                self.ollama_model.save_to_file()
+            except Exception as e:
+                print(f"Erreur mise à jour UI: {e}")
+            finally:
+                hide_spinner()
+
+        try:
+            title = self.ollama_client.create_default_title({"user": user_input})
+            temp = self.temp_spin.get_value()
+
+            GLib.idle_add(show_spinner)
+
+            # Initialiser une réponse complète
+            full_response = self.stream_response(
+                model=model,
+                temp=temp,
+                conversation={"system": self.system_entry_await},
+                user_input=user_input
+            )
+
+            # Ajouter la conversation au modèle avec la réponse complète
+            new_conv = self.ollama_model.add_conversation(model, title, user_input, full_response)
+
+            # Mettre à jour l'UI dans le thread principal
+            GLib.idle_add(update_ui_after_response, full_response, new_conv)
+
+        except Exception as e:
+            print(f"Erreur _create_new_conversation: {e}")
+            GLib.idle_add(hide_spinner)
+
+    def fetch_response(self, model: str, user_input: str) -> None:
+        """Récupère une réponse et met à jour l'interface en conséquence."""
+        def show_spinner():
+            self.sendSpinner.set_visible(True)
+
+        def hide_spinner():
+            self.sendSpinner.set_visible(False)
+
+        if self.active_toggle_button:
+            GLib.idle_add(show_spinner)
             conv_id = self.active_toggle_button.conversation_id
             temp = self.temp_spin.get_value()
             conversation = self.ollama_model.get_conversation(conv_id)
 
-            # Consommer le stream de réponse
-            full_response = self.stream_response(model=model, temp=temp, conversation=conversation, user_input=user_input)
+            try:
+                # Consommer le stream de réponse
+                full_response = self.stream_response(
+                    model=model,
+                    temp=temp,
+                    conversation=conversation,
+                    user_input=user_input
+                )
+            except Exception as e:
+                print(f"Erreur fetch_response: {e}")
+            finally:
+                GLib.idle_add(hide_spinner)
+                GLib.idle_add(self._update_conversation, conv_id, user_input, full_response)
 
-            self.sendSpinner.set_visible(False)
-            self._update_conversation(conv_id, user_input, full_response)
         else:
-            new_conversation = self._create_new_conversation(model, user_input)
+            self._create_new_conversation(model, user_input)
 
     def stream_response(self, model, temp, conversation, user_input) -> str:
-        temp_message = Message_Widget("", user=False, delete_callback=self.delete_message, message_id=self.message_id_counter + 1)
-        self.messages_list.append(temp_message)
+        """Stream response avec gestion correcte des threads GTK."""
+        temp_message = None
+        message_created = threading.Event()  # Pour synchroniser la création
+
+        def create_message():
+            nonlocal temp_message
+            try:
+                temp_message = Message_Widget(
+                    "",
+                    user=False,
+                    delete_callback=self.delete_message,
+                    message_id=self.message_id_counter + 1
+                )
+                self.messages_list.append(temp_message)
+            except Exception as e:
+                print(f"Erreur création widget: {e}")
+            finally:
+                message_created.set()  # Signaler que la création est terminée
+
+        GLib.idle_add(create_message)
+
+        # Attendre que le widget soit créé avec timeout
+        if not message_created.wait(timeout=5.0):  # Timeout de 5 secondes
+            return ""
+
+        if temp_message is None:
+            return ""
+
         full_response = ""
-        for chunk in self.ollama_client.response(model=model, temp=temp, conversation=conversation, user_input=user_input):
-            safe_chunk = chunk.encode('utf-8', errors='replace').decode('utf-8')
-            full_response += safe_chunk
-            GLib.idle_add(temp_message.append_text, safe_chunk)
-            self.scroll_to_bottom()
-        temp_message.extract_docstring(full_response)
+
+        try:
+            for chunk in self.ollama_client.response(
+                model=model,
+                temp=temp,
+                conversation=conversation,
+                user_input=user_input
+            ):
+                safe_chunk = chunk.encode('utf-8', errors='replace').decode('utf-8')
+                full_response += safe_chunk
+
+                # Mettre à jour l'interface via le thread principal
+                GLib.idle_add(temp_message.append_text, safe_chunk)
+                GLib.idle_add(self.scroll_to_bottom)
+        except Exception as e:
+            print(f"Erreur lors du streaming: {e}")
+            GLib.idle_add(temp_message.append_text, f"\n[Erreur: {e}]")
+
+        # Traitement final via le thread principal
+        GLib.idle_add(temp_message.extract_docstring, full_response)
         return full_response
 
-    def _update_conversation(self, conv_id: str, user_input: str, response: str) -> None:
-        """Met à jour une conversation existante."""
-        self.ollama_model.update_conversation(conv_id, user_input, response)
-        self._load_conversations()
-        self.ollama_model.save_to_file()
-
-    def _add_message(self, text: str, user: bool) -> None:
+    def add_message(self, text: str, user: bool) -> None:
         """Ajoute un message à la liste des messages."""
         message = Message_Widget(text, user, self.delete_message, self.message_id_counter +1)
         self.messages_list.append(message)
@@ -392,7 +492,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
                 row.set_child(button)
                 self.model_find.append(row)
 
-    def _show_toast(self, message: str) -> None:
+    def show_toast(self, message: str) -> None:
         """Affiche un toast avec un message donné."""
         self.toast_overlay.add_toast(Adw.Toast(title=message))
 
@@ -425,7 +525,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
         if not conv_id:
             # Stocker le texte temporairement pour la prochaine conversation
             self.system_entry_await = system_entry
-            self._show_toast("Personnalisation du système mise à jour.")
+            self.show_toast("Personnalisation du système mise à jour.")
             return
 
         self.ollama_model.update_system_model(conv_id, system_entry)
@@ -437,7 +537,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
         Supprime La conversation correspondant à l'id selectionné
         """
         if not self.active_toggle_button:
-            self._show_toast("Aucune conversation active")
+            self.show_toast("Aucune conversation active")
             return
         dialog = Adw.MessageDialog(
             transient_for=self,
@@ -510,7 +610,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
     @Gtk.Template.Callback()
     def on_trash_model_clicked(self, button: Gtk.Button) -> None:
         if not self.active_toggle_button:
-            self._show_toast("Aucune conversation active")
+            self.show_toast("Aucune conversation active")
             return
         dialog = Adw.MessageDialog(
             transient_for=self,
@@ -590,33 +690,58 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
             # Construire les informations du modèle
             self._build_model_infos(button.model_data)
 
-    def _build_model_infos(self, data: list):
-        if data:
-            # Liste des clés autorisées à afficher
-            allowed_keys = {"name", "model", "modified_at", "size", "pulls", "tags", "last_updated", "description"}
-            for row in self.action_rows:
-                self.model_infos.remove(row)
-            self.action_rows.clear()
+    def _build_model_infos(self, data: dict):
+        if not data:
+            return
 
-            for key, value in data.items():
-                if key in allowed_keys:
-                    label_text = {
-                        "name": "Nom du modèle",
-                        "model": "Modèle",
-                        "modified_at": "Modifié le",
-                        "size": "Taille",
-                        "pulls": "Téléchargements",
-                        "tags": "Tags",
-                        "description": "Description"
-                    }.get(key, key.capitalize())
+        allowed_keys = {"name", "model", "modified_at", "size", "versions", "pulls", "tags", "last_updated", "description"}
 
-                    # Créer une ActionRow
-                    row = Adw.ActionRow(title=label_text)
-                    label = Gtk.Label(label=str(value))
-                    label.set_halign(Gtk.Align.END)
-                    row.set_subtitle(str(value))
-                    self.model_infos.add(row)
-                    self.action_rows.append(row)
+        # Vider les anciennes lignes
+        for row in getattr(self, "action_rows", []):
+            self.model_infos.remove(row)
+        self.action_rows = []
+
+        for key, value in data.items():
+            if key not in allowed_keys:
+                continue
+
+            label_text = {
+                "name": "Nom du modèle",
+                "model": "Modèle",
+                "modified_at": "Modifié le",
+                "size": "Taille",
+                "versions": "Versions",
+                "pulls": "Téléchargements",
+                "tags": "Tags",
+                "last_updated": "Dernière mise à jour",
+                "description": "Description"
+            }.get(key, key.capitalize())
+
+            if key == "versions" and isinstance(value, list):
+                # Créer un AdwExpanderRow pour les versions
+                expander_row = Adw.ExpanderRow(title=label_text)
+                for v in value:
+                    version_name = v.get("name", "N/A")
+                    latest = v.get("latest", "")
+                    size = v.get("size", "N/A")
+                    context = v.get("context", "N/A")
+                    input_type = v.get("input", "N/A")
+                    latest_str = f" ({latest})" if latest else ""
+
+                    # Créer une ActionRow pour chaque version
+                    version_row = Adw.ActionRow(title=f"{version_name}{latest_str}")
+                    version_row.set_subtitle(f"{size} · {context} · {input_type}")
+
+                    expander_row.add_row(version_row)
+
+                self.model_infos.add(expander_row)
+                self.action_rows.append(expander_row)
+
+            else:
+                row = Adw.ActionRow(title=label_text)
+                row.set_subtitle(str(value))
+                self.model_infos.add(row)
+                self.action_rows.append(row)
 
     def is_conversation_active(self, conv_id: int) -> None:
         conversation = self.ollama_model.get_conversation(conv_id)
@@ -624,7 +749,7 @@ class GtkOllamaWindow(Adw.ApplicationWindow):
         self.conv_title.set_label(title)
         self.load_active_model(conversation)
         self.load_conversation_to_chat(conversation)
-
+        
     def load_active_model(self, conversation: Dict[str, str]) -> None:
         """Active le modèle dans le GtkComboBoxText."""
         model = conversation["model"]

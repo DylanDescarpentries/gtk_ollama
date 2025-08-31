@@ -1,3 +1,0 @@
-[D-BUS Service]
-Name=org.descarpentries.gtk_ollama
-Exec=/app/bin/gtk_ollama --gapplication-service

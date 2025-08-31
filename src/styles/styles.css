@@ -18,6 +18,16 @@
   box-shadow: 0 0 6px 3px #ebebeb;
 }
 
+.SpeakButton {
+  border-radius: 50%;
+  padding: 15px;
+  background-color: #e62d42;
+  /* Animation */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 0 6px 3px #ebebeb;
+}
+
+
 /* Titre du modèle */
 .model_title {
   font-size: 24px;

@@ -1,0 +1,24 @@
+# Répertoires de build
+/_build
+/.flatpak
+/.flatpak-builder
+
+# Config éditeur/IDE
+/.vscode
+/.idea
+
+# Fichiers temporaires de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Fichiers de logs
+*.log
+
+# Traductions compilées
+*.mo

@@ -1,5 +1,5 @@
 import os, requests, json
-from ollama import Client, Options, generate
+from ollama import Client, Options, generate # type: ignore
 
 class Ollama_client:
     def __init__(self, api_url="http://127.0.0.1:11434") -> None:
@@ -25,7 +25,7 @@ class Ollama_client:
             print(f"Erreur lors de la récupération des modèles : {e}")
             return {}
 
-    def get_distant_models(self, file_path=f"{os.path.expanduser('~')}/saves/ollama_models.json") -> None:
+    def get_distant_models(self, file_path=f"{os.path.expanduser('~')}/Documents/saves_ollama/ollama_models.json") -> None:
         """
         Charge les modele distant à partir d'un fichier JSON.
         Args:

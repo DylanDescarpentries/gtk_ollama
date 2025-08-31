@@ -1,25 +1,25 @@
 {
-    "id" : "org.descarpentries.gtk_ollama",
-    "runtime" : "org.gnome.Platform",
-    "runtime-version" : "47",
-    "sdk" : "org.gnome.Sdk",
-    "command" : "gtk_ollama",
-    "finish-args" : [
+    "id": "org.descarpentries.gtk_ollama",
+    "runtime": "org.gnome.Platform",
+    "runtime-version": "47",
+    "sdk": "org.gnome.Sdk",
+    "command": "gtk_ollama",
+    "finish-args": [
         "--share=network",
-        "--share=ipc",
+        "--share=ipc", 
         "--socket=fallback-x11",
-        "--device=dri",
         "--socket=wayland",
+        "--device=dri",
+        "--device=all",
+        "--socket=pulseaudio",
+        "--filesystem=host",
+        "--filesystem=/sys:ro",
+        "--allow=devel",
+        "--talk-name=org.freedesktop.spawn",
         "--talk-name=org.freedesktop.Flatpak",
-        "--device=all"
+        "--env=PATH=/app/bin:/usr/bin:/bin:/usr/local/bin"
     ],
-
-     "build-options": {
-    	"files": {
-        "saves/ollama_models.json": "data/saves/ollama_models.json"
-    }
-},
-    "cleanup" : [
+    "cleanup": [
         "/include",
         "/lib/pkgconfig",
         "/man",
@@ -30,59 +30,133 @@
         "*.la",
         "*.a"
     ],
-    "modules" : [
-  {
-        "name": "requests",
-        "buildsystem": "simple",
-        "build-options": {
-          "build-args": [
-            "--share=network"
-          ]
-        },
-        "build-commands": [
-            "pip3 install --prefix=/app --no-cache-dir requests"
-        ]
-    },  {
-        "name": "ollama",
-        "buildsystem": "simple",
-        "build-options": {
-          "build-args": [
-            "--share=network"
-          ]
-        },
-        "build-commands": [
-            "pip3 install --prefix=/app --no-cache-dir ollama"
-        ]
-    },
-      {
-        "name": "beautifulsoup4",
-        "buildsystem": "simple",
-        "build-options": {
-          "build-args": [
-            "--share=network"
-          ]
-        },
-        "build-commands": [
-            "pip3 install --prefix=/app --no-cache-dir beautifulsoup4"
-        ]
-    },
+    "modules": [
         {
-            "name" : "gtk_ollama",
-            "builddir" : true,
-            "buildsystem" : "meson",
-            "sources" : [
+            "name": "portaudio",
+            "buildsystem": "cmake-ninja",
+            "config-opts": [
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-DPA_BUILD_TESTS=OFF",
+                "-DPA_BUILD_EXAMPLES=OFF"
+            ],
+            "sources": [
                 {
-                    "type" : "git",
-                    "url" : "file:///home/dylan/Documents/Programmation/Projet/Application/Gnome_Builder_Projects/gtk_ollama/"
+                    "type": "archive",
+                    "url": "http://files.portaudio.com/archives/pa_stable_v190700_20210406.tgz",
+                    "sha256": "47efbf42c77c19a05d22e627d42873e991ec0c1357219c0d74ce6a2948cb2def"
                 }
             ]
         },
         {
-          "name": "pytest",
-          "buildsystem": "simple",
-          "build-commands": [
-              "pip3 install pytest"
-          ]
-      }
+            "name": "pytest",
+            "buildsystem": "simple",
+            "build-options": {
+                "build-args": [
+                    "--share=network"
+                ]
+            },
+            "build-commands": [
+                "pip3 install --prefix=/app --no-cache-dir pytest"
+            ]
+        },
+        {
+            "name": "openai-whisper",
+            "buildsystem": "simple",
+            "build-options": {
+                "build-args": [
+                    "--share=network"
+                ],
+                "env": {
+                    "CUDA_VISIBLE_DEVICES": ""
+                }
+            },
+            "build-commands": [
+                "pip3 install --prefix=/app --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu",
+                "pip3 install --prefix=/app --no-cache-dir openai-whisper"
+            ]
+        },
+        {
+            "name": "sounddevice",
+            "buildsystem": "simple",
+            "build-options": {
+                "build-args": [
+                    "--share=network"
+                ]
+            },
+            "build-commands": [
+                "pip3 install --prefix=/app --no-cache-dir sounddevice"
+            ]
+        },
+        {
+            "name": "pygame",
+            "buildsystem": "simple",
+            "build-options": {
+                "build-args": [
+                    "--share=network"
+                ]
+            },
+            "build-commands": [
+                "pip3 install --prefix=/app --no-cache-dir pygame"
+            ]
+        },
+        {
+            "name": "gradio_client",
+            "buildsystem": "simple",
+            "build-options": {
+                "build-args": [
+                    "--share=network"
+                ]
+            },
+            "build-commands": [
+                "pip3 install --prefix=/app --no-cache-dir gradio_client"
+            ]
+        },
+        {
+            "name": "requests",
+            "buildsystem": "simple",
+            "build-options": {
+                "build-args": [
+                    "--share=network"
+                ]
+            },
+            "build-commands": [
+                "pip3 install --prefix=/app --no-cache-dir requests"
+            ]
+        },
+        {
+            "name": "ollama",
+            "buildsystem": "simple",
+            "build-options": {
+                "build-args": [
+                    "--share=network"
+                ]
+            },
+            "build-commands": [
+                "pip3 install --prefix=/app --no-cache-dir ollama"
+            ]
+        },
+        {
+            "name": "beautifulsoup4",
+            "buildsystem": "simple",
+            "build-options": {
+                "build-args": [
+                    "--share=network"
+                ]
+            },
+            "build-commands": [
+                "pip3 install --prefix=/app --no-cache-dir beautifulsoup4"
+            ]
+        },
+        {
+            "name": "gtk_ollama",
+            "builddir": true,
+            "buildsystem": "meson",
+            "sources": [
+                {
+                    "type": "git",
+                    "url": "https://github.com/DylanDescarpentries/gtk_ollama"
+                }
+            ]
+        }
     ]
 }

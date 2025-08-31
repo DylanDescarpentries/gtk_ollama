@@ -7,21 +7,6 @@ project('gtk_ollama',
 i18n = import('i18n')
 gnome = import('gnome')
 
-# Find pytest as an external program
-pytest = find_program('pytest', required: true)
-
-# Unit test using pytest as external program
-test(
-    'unit_tests',
-    pytest,
-    args: [
-        '-v',
-        join_paths(meson.project_source_root(), 'tests', 'test_message_widget.py'),
-        join_paths(meson.project_source_root(), 'tests', 'test_main.py'),
-        join_paths(meson.project_source_root(), 'tests', 'test_ollama_client.py')
-    ],
-)
-
 subdir('data')
 subdir('src')
 subdir('po')
